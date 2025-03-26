@@ -127,30 +127,70 @@ page = st.sidebar.radio("Select Page", ["📊 Stock Analysis", "📈 Portfolio A
 
 # ======================== STOCK ANALYSIS PAGE ========================
 if page == "📊 Stock Analysis":
-    st.title("📊 Individual Stock Implied Volatility Calculator")
-    stock_ticker = st.text_input("Enter Stock Ticker:", "").strip().upper()
-    
-    if st.button("Calculate IV"):
-        if stock_ticker:
-            analyzer = ImpliedVolatilityAnalyzer(stock_ticker)
-            iv_data = analyzer.get_nearest_iv()
-            if isinstance(iv_data, tuple):
-                iv, _, _ = iv_data  # Extract only the implied volatility
-            else:
-                iv = iv_data  # If it's already a number (NaN case)
+    st.title("📈 Implied Volatility Calculator")
+    st.write("Enter a stock ticker to retrieve its implied volatility for different expirations.")
 
-            if np.isnan(iv):
-                st.error(f"⚠️ No implied volatility found for {stock_ticker}. Try another ticker.")
-            else:
-                st.success(f"📉 **Implied Volatility for {stock_ticker}: {iv*100:.2f}%**")
-        else:
-            st.error("⚠️ Please enter a valid stock ticker.")
+    # User input
+    ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
+
+    if st.button("Analyze"):
+        try:
+            analyzer = ImpliedVolatilityAnalyzer(ticker)
+            selected_expirations, iv_results = analyzer.get_iv_by_timeframes()
+
+            # IV Table
+            df_iv = pd.DataFrame({
+                "Expiration Date": [selected_expirations[key] for key in selected_expirations],
+                "Strike Price": [iv_results[i][1] for i in range(4)],
+                "Option Type": [iv_results[i][2] for i in range(4)],
+                "Implied Volatility (%)": [iv_results[i][0] * 100 for i in range(4)]
+            })
+
+            # Expected Price Movement
+            df_expected_moves = pd.DataFrame({
+                "Expiration Date": [selected_expirations[key] for key in selected_expirations],
+                "Expected Price Movement ($)": [
+                    analyzer.current_price * iv_results[i][0] * np.sqrt(analyzer._calculate_time_to_expiry(selected_expirations[key])[0])
+                    for i, key in enumerate(selected_expirations)
+                ]
+            })
+
+            # Display tables
+            st.subheader("Implied Volatilities")
+            st.dataframe(df_iv)
+
+            st.subheader("Expected Price Movements")
+            st.dataframe(df_expected_moves)
+
+            # Monte Carlo Simulation
+            st.subheader("Monte Carlo Simulation")
+            price_paths = analyzer.monte_carlo_simulation()
+            if price_paths is not None:
+                num_days = price_paths.shape[0]
+                date_range = [datetime.today() + timedelta(days=i) for i in range(num_days)]
+                plt.figure(figsize=(10, 5))
+                for i in range(price_paths.shape[1]):
+                    plt.plot(date_range, price_paths[:, i], linewidth=1.5)
+
+                plt.axhline(y=analyzer.current_price, color='black', linestyle='--', label="Current Price")
+                plt.xlabel("Date")
+                plt.ylabel("Stock Price ($)")
+                plt.title(f"Monte Carlo Simulated Stock Price Paths for {ticker}")
+                plt.legend()
+                st.pyplot(plt)
+
+        except Exception as e:
+            st.error(f"Error fetching data: {str(e)}")
+
 
 # ======================== PORTFOLIO ANALYSIS PAGE ========================
 elif page == "📈 Portfolio Analysis":
-    st.title("📈 Portfolio Implied Volatility Calculator")
-    st.write("Enter up to **12 stock tickers** and their weights.")
+    st.set_page_config(page_title="Portfolio Implied Volatility", layout="wide")
 
+    st.title("📊 Portfolio Implied Volatility Calculator")
+    st.write("Enter up to **12 stock tickers** and their portfolio weights to calculate the **implied volatility**.")
+
+    # User inputs for tickers and weights
     tickers = []
     weights = []
 
@@ -166,13 +206,26 @@ elif page == "📈 Portfolio Analysis":
             ticker = st.text_input(f"Stock {i+1} Ticker:", key=f"ticker_{i}").strip().upper()
             tickers.append(ticker)
 
-    weights = [st.number_input(f"Weight for {tickers[i]} (%):", min_value=0.0, max_value=100.0, key=f"weight_{i}") for i in range(12)]
+    col3, col4 = st.columns(2)
 
+    with col3:
+        for i in range(6):
+            weight = st.number_input(f"Weight for {tickers[i]} (%):", min_value=0.0, max_value=100.0, key=f"weight_{i}")
+            weights.append(weight)
+
+    with col4:
+        for i in range(6, 12):
+            weight = st.number_input(f"Weight for {tickers[i]} (%):", min_value=0.0, max_value=100.0, key=f"weight_{i}")
+            weights.append(weight)
+
+    # Remove empty tickers
     ticker_weights = {tickers[i]: weights[i] for i in range(12) if tickers[i] and weights[i] > 0}
 
     if st.button("Calculate Portfolio IV"):
         if sum(ticker_weights.values()) != 100:
             st.error("⚠️ Total weights must sum to **100%**.")
+        elif not ticker_weights:
+            st.error("⚠️ Please enter at least **one valid stock ticker and weight**.")
         else:
             portfolio_iv = calculate_portfolio_implied_volatility(ticker_weights)
             st.success(f"📉 **Portfolio Implied Volatility:** {portfolio_iv:.2f}%")
