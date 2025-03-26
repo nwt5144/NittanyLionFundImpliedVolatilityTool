@@ -95,7 +95,7 @@ class ImpliedVolatilityAnalyzer:
             return np.nan, np.nan, np.nan  # Prevent indexing error
 
         t, _ = self._calculate_time_to_expiry(expiration_date)
-        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"  # ✅ Fixed issue
+        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"
 
         # ✅ Ensure scalar values
         option_price = closest_option["lastPrice"].iloc[0] if isinstance(closest_option["lastPrice"], pd.Series) else closest_option["lastPrice"]
@@ -157,7 +157,7 @@ if page == "📊 Stock Analysis":
             if np.isnan(iv):
                 st.error("No valid IV data found.")
             else:
-                st.success(f"**Implied Volatility for {ticker}: {iv:.2f}%**")
+                st.success(f"**Implied Volatility for {ticker}: {iv * 100:.2f}%**")
                 st.write(f"**Strike Price:** {strike}, **Option Type:** {option_type}")
 
         except Exception as e:
