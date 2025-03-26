@@ -87,7 +87,7 @@ class ImpliedVolatilityAnalyzer:
         closest_option = all_options.loc[all_options["strike_diff"].idxmin()]
 
         t, _ = self._calculate_time_to_expiry(expiration_date)
-        option_type = "call" if closest_option["flag"] == "c" else "put"
+        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"
 
         iv = self._calculate_iv_newton(
             option_price=closest_option["lastPrice"],
