@@ -61,28 +61,37 @@ class ImpliedVolatilityAnalyzer:
         return sigma
 
     def calculate_iv(self, options_chain, expiration_date):
-        """Compute implied volatility for closest strike price."""
-        if options_chain is None:
-            return np.nan, np.nan, np.nan
-
+        """Calculate implied volatility for the option with the closest strike price"""
         calls = options_chain.calls.copy()
         calls["flag"] = "c"
         puts = options_chain.puts.copy()
         puts["flag"] = "p"
         all_options = pd.concat([calls, puts])
-        all_options["strike_diff"] = abs(all_options["strike"] - self.current_price)
-        closest_option = all_options.loc[all_options["strike_diff"].idxmin()]
 
+        # Ensure we select a single closest strike
+        all_options["strike_diff"] = abs(all_options["strike"] - self.current_price)
+        closest_option = all_options.loc[all_options["strike_diff"].idxmin()].copy()
+
+        if isinstance(closest_option, pd.Series):
+            closest_option = closest_option.to_frame().T  # Convert to DataFrame if needed
+
+        # Extract time to expiry
         t, _ = self._calculate_time_to_expiry(expiration_date)
+
+        # Fix for Series issue
+        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"
+
         iv = self._calculate_iv_newton(
-            option_price=closest_option["lastPrice"],
+            option_price=closest_option["lastPrice"].iloc[0],
             S=self.current_price,
-            K=closest_option["strike"],
+            K=closest_option["strike"].iloc[0],
             t=t,
             r=self.risk_free_rate,
-            option_type="call" if closest_option["flag"] == "c" else "put"
+            option_type=option_type
         )
-        return iv, closest_option["strike"], closest_option["flag"]
+
+        return iv, closest_option["strike"].iloc[0], option_type
+
 
     def get_nearest_iv(self):
         """Get IV for the nearest expiration."""
