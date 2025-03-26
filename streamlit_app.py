@@ -6,6 +6,43 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
+# URL of the logo image in your GitHub repo
+background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/nittany_lion_fund_llc_psu_logo.jfif"
+
+# Custom CSS to create a header with the logo as the background
+custom_css = f"""
+<style>
+/* Create a header section with the logo as the background */
+.header {{
+    background-image: url('{background_image_url}');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 150px; /* Adjust height as needed */
+    width: 100%;
+    opacity: 0.5; /* Adjust opacity to make the logo subtle */
+    position: relative;
+    margin-bottom: 20px; /* Space between header and content */
+}}
+
+/* Style the title to be centered and readable */
+h1 {{
+    color: #003087; /* Nittany Lion Fund blue color */
+    text-align: center;
+    padding-top: 20px; /* Space above the title */
+}}
+
+/* Ensure content below the header has enough padding */
+div[data-testid="stAppViewContainer"] > div {{
+    padding-top: 20px;
+}}
+</style>
+"""
+
+# Inject the custom CSS and create the header
+st.markdown(custom_css, unsafe_allow_html=True)
+st.markdown('<div class="header"></div>', unsafe_allow_html=True)
+
 class ImpliedVolatilityAnalyzer:
     def __init__(self, ticker, risk_free_rate=0.025):
         self.ticker = ticker
