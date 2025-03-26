@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 from datetime import datetime, date, timedelta
-from dateutil.relativedelta import relativedelta
 from scipy.stats import norm
 
 class ImpliedVolatilityAnalyzer:
@@ -256,8 +254,6 @@ class ImpliedVolatilityAnalyzer:
         ax.set_ylabel("Stock Price ($)")
         ax.legend()
         st.pyplot(fig)
-
-ImpliedVolatilityAnalyzer.monte_carlo_simulation = monte_carlo_simulation
 
 # Streamlit UI
 st.title("📈 Implied Volatility Calculator")
