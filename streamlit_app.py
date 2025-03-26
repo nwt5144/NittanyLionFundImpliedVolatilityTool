@@ -1,151 +1,167 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import yfinance as yf
-import matplotlib.pyplot as plt
-from datetime import datetime, date, timedelta
+import numpy as np
+import pandas as pd
 from scipy.stats import norm
+from datetime import datetime, date, timedelta
 
-# Class for IV analysis
+
 class ImpliedVolatilityAnalyzer:
     def __init__(self, ticker, risk_free_rate=0.025):
-        self.ticker = ticker.upper()
+        self.ticker = ticker
         self.risk_free_rate = risk_free_rate
-        self.stock = yf.Ticker(self.ticker)
-        self.current_price = self.stock.info.get('regularMarketPrice', np.nan)
-        self.available_expirations = self.stock.options if self.stock.options else []
+        self.stock = yf.Ticker(ticker)
+        try:
+            self.current_price = self.stock.info['regularMarketPrice']
+            self.available_expirations = self.stock.options
+        except:
+            self.current_price = None
+            self.available_expirations = []
 
-    def get_options_data(self, expiration_date):
-        """Retrieve options chain data for a given expiration date."""
-        options_chain = self.stock.option_chain(expiration_date)
-        return options_chain.calls, options_chain.puts
+    def get_options_data(self, expiration_date=None):
+        """Fetch options chain for a given expiration date."""
+        if expiration_date is None or expiration_date not in self.available_expirations:
+            if self.available_expirations:
+                expiration_date = self.available_expirations[0]
+            else:
+                return None, None
+
+        try:
+            options_chain = self.stock.option_chain(expiration_date)
+            return options_chain, expiration_date
+        except:
+            return None, None
 
     def _calculate_time_to_expiry(self, expiration_date):
-        """Calculate time to expiry in years."""
+        """Calculate time to expiration in years."""
         today = date.today()
-        exp_date = datetime.strptime(expiration_date, '%Y-%m-%d').date()
-        days_to_exp = (exp_date - today).days
-        return max(days_to_exp, 5) / 365.0, days_to_exp  # Ensure stability for short-term options
+        exp_date = datetime.strptime(expiration_date, "%Y-%m-%d").date()
+        days_to_exp = max((exp_date - today).days, 1)  # Prevent zero division
+        return days_to_exp / 365.0, days_to_exp
 
-    def _bs_price(self, S, K, t, r, sigma, option_type='call'):
-        """Black-Scholes option pricing formula."""
+    def _bs_price(self, S, K, t, r, sigma, option_type="call"):
+        """Black-Scholes option pricing model."""
         d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * t) / (sigma * np.sqrt(t))
         d2 = d1 - sigma * np.sqrt(t)
-        if option_type == 'call':
+        if option_type.lower() == "call":
             return S * norm.cdf(d1) - K * np.exp(-r * t) * norm.cdf(d2)
         else:
             return K * np.exp(-r * t) * norm.cdf(-d2) - S * norm.cdf(-d1)
 
-    def _calculate_iv(self, option_price, S, K, t, r, option_type='call'):
+    def _calculate_iv_newton(self, option_price, S, K, t, r, option_type="call", max_iterations=100, precision=1e-6):
         """Calculate implied volatility using Newton-Raphson method."""
         sigma = 0.3  # Initial guess
-        for _ in range(100):
+        for _ in range(max_iterations):
             price = self._bs_price(S, K, t, r, sigma, option_type)
             vega = S * np.sqrt(t) * norm.pdf((np.log(S / K) + (r + 0.5 * sigma**2) * t) / (sigma * np.sqrt(t)))
-            if abs(price - option_price) < 1e-8:
+            if abs(price - option_price) < precision:
                 return sigma
             sigma -= (price - option_price) / max(vega, 1e-8)
-            sigma = max(0.01, min(sigma, 2.0))  # Keep IV in reasonable bounds
-        return np.nan
+            sigma = max(0.01, min(sigma, 2.0))  # Keep within reasonable bounds
+        return sigma
 
-    def calculate_iv(self, expiration_date):
-        """Get implied volatility for the closest strike price option."""
-        calls, puts = self.get_options_data(expiration_date)
-        all_options = pd.concat([calls.assign(type='c'), puts.assign(type='p')])
-        all_options['strike_diff'] = abs(all_options['strike'] - self.current_price)
-        closest_option = all_options.nsmallest(1, 'strike_diff').iloc[0]
+    def calculate_iv(self, options_chain, expiration_date):
+        """Compute implied volatility for closest strike price."""
+        if options_chain is None:
+            return np.nan, np.nan, np.nan
+
+        calls = options_chain.calls.copy()
+        calls["flag"] = "c"
+        puts = options_chain.puts.copy()
+        puts["flag"] = "p"
+        all_options = pd.concat([calls, puts])
+        all_options["strike_diff"] = abs(all_options["strike"] - self.current_price)
+        closest_option = all_options.loc[all_options["strike_diff"].idxmin()]
 
         t, _ = self._calculate_time_to_expiry(expiration_date)
-        iv = self._calculate_iv(closest_option['lastPrice'], self.current_price, closest_option['strike'], t, self.risk_free_rate, closest_option['type'])
-        return iv, closest_option['strike'], closest_option['type']
+        iv = self._calculate_iv_newton(
+            option_price=closest_option["lastPrice"],
+            S=self.current_price,
+            K=closest_option["strike"],
+            t=t,
+            r=self.risk_free_rate,
+            option_type="call" if closest_option["flag"] == "c" else "put"
+        )
+        return iv, closest_option["strike"], closest_option["flag"]
 
-    def get_iv_by_timeframes(self):
-        """Retrieve IV for key expirations."""
-        today = date.today()
-        expiration_dates = [datetime.strptime(exp, '%Y-%m-%d').date() for exp in self.available_expirations]
+    def get_nearest_iv(self):
+        """Get IV for the nearest expiration."""
+        if not self.available_expirations:
+            return np.nan
+        options_chain, expiration_date = self.get_options_data(self.available_expirations[0])
+        iv, _, _ = self.calculate_iv(options_chain, expiration_date)
+        return iv
 
-        target_durations = {
-            "nearest": timedelta(days=0),
-            "three_months": timedelta(days=90),
-            "six_months": timedelta(days=180),
-            "one_year": timedelta(days=365)
-        }
 
-        selected_expirations = {key: min(expiration_dates, key=lambda x: abs(x - (today + offset))).strftime('%Y-%m-%d') for key, offset in target_durations.items()}
-        iv_results = [self.calculate_iv(selected_expirations[key]) for key in target_durations]
-        return selected_expirations, iv_results
+def calculate_portfolio_implied_volatility(ticker_weights):
+    """
+    Calculate the portfolio implied volatility using weighted individual stock volatilities.
 
-    def monte_carlo_simulation(self, num_simulations=6, num_days=365):
-        """Generate Monte Carlo simulated stock price paths."""
-        _, iv_results = self.get_iv_by_timeframes()
-        one_year_iv = iv_results[3][0]
+    Parameters:
+    - ticker_weights (dict): A dictionary where keys are ticker symbols, and values are percentage weights (as floats).
 
-        if np.isnan(one_year_iv) or one_year_iv <= 0:
-            return None  # Skip plotting if IV is invalid
+    Returns:
+    - float: Portfolio implied volatility in percentage form.
+    """
+    total_weight = sum(ticker_weights.values())
 
-        daily_volatility = one_year_iv / np.sqrt(252)
-        S0 = self.current_price
+    if total_weight == 0:
+        return 0  # Prevent division by zero
 
-        price_paths = np.zeros((num_days, num_simulations))
-        price_paths[0, :] = S0
-        for t in range(1, num_days):
-            random_returns = np.random.normal(0, daily_volatility, size=num_simulations)
-            price_paths[t, :] = price_paths[t - 1, :] * np.exp(random_returns)
-
-        return price_paths
-
-# Streamlit UI
-st.title("📈 Implied Volatility Calculator")
-st.write("Enter a stock ticker to retrieve its implied volatility for different expirations.")
-
-# User input
-ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
-
-if st.button("Analyze"):
-    try:
+    portfolio_variance = 0
+    for ticker, weight in ticker_weights.items():
         analyzer = ImpliedVolatilityAnalyzer(ticker)
-        selected_expirations, iv_results = analyzer.get_iv_by_timeframes()
+        iv = analyzer.get_nearest_iv()
+        if np.isnan(iv):
+            continue
+        portfolio_variance += (weight / 100) ** 2 * (iv ** 2)  # Variance contribution
 
-        # IV Table
-        df_iv = pd.DataFrame({
-            "Expiration Date": [selected_expirations[key] for key in selected_expirations],
-            "Strike Price": [iv_results[i][1] for i in range(4)],
-            "Option Type": [iv_results[i][2] for i in range(4)],
-            "Implied Volatility (%)": [iv_results[i][0] * 100 for i in range(4)]
-        })
+    portfolio_iv = np.sqrt(portfolio_variance) * 100  # Convert to percentage
+    return portfolio_iv
 
-        # Expected Price Movement
-        df_expected_moves = pd.DataFrame({
-            "Expiration Date": [selected_expirations[key] for key in selected_expirations],
-            "Expected Price Movement ($)": [
-                analyzer.current_price * iv_results[i][0] * np.sqrt(analyzer._calculate_time_to_expiry(selected_expirations[key])[0])
-                for i, key in enumerate(selected_expirations)
-            ]
-        })
 
-        # Display tables
-        st.subheader("Implied Volatilities")
-        st.dataframe(df_iv)
+# ======================== Streamlit App ========================
+st.set_page_config(page_title="Portfolio Implied Volatility", layout="wide")
 
-        st.subheader("Expected Price Movements")
-        st.dataframe(df_expected_moves)
+st.title("📊 Portfolio Implied Volatility Calculator")
+st.write("Enter up to **12 stock tickers** and their portfolio weights to calculate the **implied volatility**.")
 
-        # Monte Carlo Simulation
-        st.subheader("Monte Carlo Simulation")
-        price_paths = analyzer.monte_carlo_simulation()
-        if price_paths is not None:
-            num_days = price_paths.shape[0]
-            date_range = [datetime.today() + timedelta(days=i) for i in range(num_days)]
-            plt.figure(figsize=(10, 5))
-            for i in range(price_paths.shape[1]):
-                plt.plot(date_range, price_paths[:, i], linewidth=1.5)
+# User inputs for tickers and weights
+tickers = []
+weights = []
 
-            plt.axhline(y=analyzer.current_price, color='black', linestyle='--', label="Current Price")
-            plt.xlabel("Date")
-            plt.ylabel("Stock Price ($)")
-            plt.title(f"Monte Carlo Simulated Stock Price Paths for {ticker}")
-            plt.legend()
-            st.pyplot(plt)
+col1, col2 = st.columns(2)
 
-    except Exception as e:
-        st.error(f"Error fetching data: {str(e)}")
+with col1:
+    for i in range(6):
+        ticker = st.text_input(f"Stock {i+1} Ticker:", key=f"ticker_{i}").strip().upper()
+        tickers.append(ticker)
+
+with col2:
+    for i in range(6, 12):
+        ticker = st.text_input(f"Stock {i+1} Ticker:", key=f"ticker_{i}").strip().upper()
+        tickers.append(ticker)
+
+col3, col4 = st.columns(2)
+
+with col3:
+    for i in range(6):
+        weight = st.number_input(f"Weight for {tickers[i]} (%):", min_value=0.0, max_value=100.0, key=f"weight_{i}")
+        weights.append(weight)
+
+with col4:
+    for i in range(6, 12):
+        weight = st.number_input(f"Weight for {tickers[i]} (%):", min_value=0.0, max_value=100.0, key=f"weight_{i}")
+        weights.append(weight)
+
+# Remove empty tickers
+ticker_weights = {tickers[i]: weights[i] for i in range(12) if tickers[i] and weights[i] > 0}
+
+if st.button("Calculate Portfolio IV"):
+    if sum(ticker_weights.values()) != 100:
+        st.error("⚠️ Total weights must sum to **100%**.")
+    elif not ticker_weights:
+        st.error("⚠️ Please enter at least **one valid stock ticker and weight**.")
+    else:
+        portfolio_iv = calculate_portfolio_implied_volatility(ticker_weights)
+        st.success(f"📉 **Portfolio Implied Volatility:** {portfolio_iv:.2f}%")
