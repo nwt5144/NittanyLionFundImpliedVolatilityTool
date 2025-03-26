@@ -55,9 +55,14 @@ class ImpliedVolatilityAnalyzer:
 
     def _calculate_iv_newton(self, option_price, S, K, t, r, option_type="call", max_iterations=100, precision=1e-6):
         """Calculate implied volatility using Newton-Raphson method."""
+        if not isinstance(option_price, (int, float)) or np.isnan(option_price):
+            return np.nan  # Ensure option price is a number
+
         sigma = 0.3  # Initial guess
         for _ in range(max_iterations):
             price = self._bs_price(S, K, t, r, sigma, option_type)
+            if np.isnan(price):
+                return np.nan
             vega = S * np.sqrt(t) * norm.pdf((np.log(S / K) + (r + 0.5 * sigma**2) * t) / (sigma * np.sqrt(t)))
             if abs(price - option_price) < precision:
                 return sigma
@@ -86,19 +91,26 @@ class ImpliedVolatilityAnalyzer:
         all_options["strike_diff"] = abs(all_options["strike"] - self.current_price)
         closest_option = all_options.loc[all_options["strike_diff"].idxmin()]
 
+        if closest_option.empty:
+            return np.nan, np.nan, np.nan  # Prevent indexing error
+
         t, _ = self._calculate_time_to_expiry(expiration_date)
-        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"
+        option_type = "call" if closest_option["flag"].iloc[0] == "c" else "put"  # ✅ Fixed issue
+
+        # ✅ Ensure scalar values
+        option_price = closest_option["lastPrice"].iloc[0] if isinstance(closest_option["lastPrice"], pd.Series) else closest_option["lastPrice"]
+        strike = closest_option["strike"].iloc[0] if isinstance(closest_option["strike"], pd.Series) else closest_option["strike"]
 
         iv = self._calculate_iv_newton(
-            option_price=closest_option["lastPrice"],
+            option_price=option_price,
             S=self.current_price,
-            K=closest_option["strike"],
+            K=strike,
             t=t,
             r=self.risk_free_rate,
             option_type=option_type
         )
 
-        return iv, closest_option["strike"], option_type
+        return iv, strike, option_type
 
 # ======================== PORTFOLIO IV CALCULATOR ========================
 
