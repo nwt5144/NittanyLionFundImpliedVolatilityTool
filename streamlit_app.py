@@ -115,53 +115,39 @@ class ImpliedVolatilityAnalyzer:
         hist_vol_30d = self.get_historical_volatility(days=30)
         hist_vol_1y = self.get_historical_volatility(days=252)
 
-        st.write(f"### Implied Volatility Metrics for {self.stock.info['longName']}: {self.ticker}")
-        st.write(f"Current Price: ${self.current_price:.2f}")
+        st.write(f"### Implied Volatility Metrics for {self.stock.info['longName']} ({self.ticker})")
+        st.write(f"**Current Price:** ${self.current_price:.2f}")
         st.write("---")
 
-        iv_data = pd.DataFrame({
-            "Timeframe": ["Nearest", "~3 Months", "~6 Months", "~1 Year"],
-            "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
-            "Strike": [nearest_strike, three_month_strike, six_month_strike, one_year_strike],
-            "Type": [nearest_type.upper(), three_month_type.upper(), six_month_type.upper(), one_year_type.upper()],
-            "IV (%)": [f"{iv*100:.2f}" for iv in [nearest_iv, three_month_iv, six_month_iv, one_year_iv]]
-        })
         st.write("#### Implied Volatilities")
-        st.text_area("Copyable IV Data (Tab-separated)", iv_data.to_csv(sep="\t", index=False), height=150)
+        st.write(f"- **Nearest (Exp: {nearest_date})**: Strike: ${nearest_strike:.2f} ({nearest_type.upper()}), IV: {nearest_iv*100:.2f}%")
+        st.write(f"- **~3 Months (Exp: {three_month_date})**: Strike: ${three_month_strike:.2f} ({three_month_type.upper()}), IV: {three_month_iv*100:.2f}%")
+        st.write(f"- **~6 Months (Exp: {six_month_date})**: Strike: ${six_month_strike:.2f} ({six_month_type.upper()}), IV: {six_month_iv*100:.2f}%")
+        st.write(f"- **~1 Year (Exp: {one_year_date})**: Strike: ${one_year_strike:.2f} ({one_year_type.upper()}), IV: {one_year_iv*100:.2f}%")
 
-        iv_dates = [nearest_date, three_month_date, six_month_date, one_year_date]
-        iv_values = [nearest_iv, three_month_iv, six_month_iv, one_year_iv]
-        expected_moves = []
-        for iv, exp_date in zip(iv_values, iv_dates):
+        st.write("#### Expected Price Movements (IV)")
+        for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
             if not np.isnan(iv):
                 t, _ = self._calculate_time_to_expiry(exp_date)
                 expected_move = self.current_price * iv * np.sqrt(t)
-                expected_moves.append(f"{exp_date}\t±${expected_move:.2f}")
-
-        st.write("#### Expected Price Movements (IV)")
-        st.text_area("Copyable Expected Moves (Tab-separated)", "\n".join(expected_moves), height=150)
+                st.write(f"- By {exp_date}: ±${expected_move:.2f}")
 
         st.write("#### Historical Volatility")
-        st.write(f"30-Day: {hist_vol_30d:.2f}%")
-        st.write(f"1-Year: {hist_vol_1y:.2f}%")
+        st.write(f"- **30-Day**: {hist_vol_30d:.2f}%")
+        st.write(f"- **1-Year**: {hist_vol_1y:.2f}%")
 
-        hv_days = [30, 252]
-        hv_values = [hist_vol_30d, hist_vol_1y]
-        hv_moves = []
-        for hv, days in zip(hv_values, hv_days):
+        st.write("#### Expected Price Movements (HV)")
+        for hv, days in zip([hist_vol_30d, hist_vol_1y], [30, 252]):
             if not np.isnan(hv):
                 t = days / 252
                 expected_move = self.current_price * (hv / 100) * np.sqrt(t)
-                hv_moves.append(f"{days} days\t±${expected_move:.2f}")
-
-        st.write("#### Expected Price Movements (HV)")
-        st.text_area("Copyable HV Moves (Tab-separated)", "\n".join(hv_moves), height=100)
+                st.write(f"- Over {days} days: ±${expected_move:.2f}")
 
         st.write("#### Explanation")
-        st.write("- Implied volatility (IV) represents expected future price fluctuations.")
-        st.write("- Expected price movements based on IV show how much the stock could move by each expiration date.")
-        st.write("- Historical volatility (HV) reflects past realized price fluctuations.")
-        st.write("- Comparing IV to HV helps determine if options are overpriced or underpriced.")
+        st.write("- **Implied Volatility (IV)**: Represents expected future price fluctuations.")
+        st.write("- **Expected Price Movements (IV)**: Shows potential stock price movement by expiration.")
+        st.write("- **Historical Volatility (HV)**: Reflects past price fluctuations.")
+        st.write("- **IV vs. HV**: Compare to assess if options are overpriced or underpriced.")
 
     def display_data_for_excel(self):
         metrics = self.get_iv_by_timeframes()
@@ -170,24 +156,25 @@ class ImpliedVolatilityAnalyzer:
         nearest_strike, three_month_strike, six_month_strike, one_year_strike, \
         nearest_type, three_month_type, six_month_type, one_year_type = metrics
 
-        iv_data = pd.DataFrame([
-            [nearest_date, nearest_strike, nearest_type.upper(), nearest_iv * 100],
-            [three_month_date, three_month_strike, three_month_type.upper(), three_month_iv * 100],
-            [six_month_date, six_month_strike, six_month_type.upper(), six_month_iv * 100],
-            [one_year_date, one_year_strike, one_year_type.upper(), one_year_iv * 100]
-        ], columns=["Expiration Date", "Strike Price", "Option Type", "Implied Volatility (%)"])
-        st.write("### IV Data")
-        st.text_area("Copyable IV Data (Tab-separated)", iv_data.to_csv(sep="\t", index=False), height=150)
+        # IV Data in NumPy chart format
+        iv_chart = "Expiration Date\tStrike Price\tOption Type\tImplied Volatility (%)\n"
+        iv_chart += f"{nearest_date}\t{nearest_strike:.2f}\t{nearest_type.upper()}\t{nearest_iv*100:.2f}\n"
+        iv_chart += f"{three_month_date}\t{three_month_strike:.2f}\t{three_month_type.upper()}\t{three_month_iv*100:.2f}\n"
+        iv_chart += f"{six_month_date}\t{six_month_strike:.2f}\t{six_month_type.upper()}\t{six_month_iv*100:.2f}\n"
+        iv_chart += f"{one_year_date}\t{one_year_strike:.2f}\t{one_year_type.upper()}\t{one_year_iv*100:.2f}"
+        st.write("### IV Data (Copyable for Excel)")
+        st.text_area("IV Chart", iv_chart, height=150)
 
-        expected_moves = pd.DataFrame([
-            [nearest_date, self.current_price * nearest_iv * np.sqrt(self._calculate_time_to_expiry(nearest_date)[0])],
-            [three_month_date, self.current_price * three_month_iv * np.sqrt(self._calculate_time_to_expiry(three_month_date)[0])],
-            [six_month_date, self.current_price * six_month_iv * np.sqrt(self._calculate_time_to_expiry(six_month_date)[0])],
-            [one_year_date, self.current_price * one_year_iv * np.sqrt(self._calculate_time_to_expiry(one_year_date)[0])]
-        ], columns=["Expiration Date", "Expected Price Movement ($)"])
-        st.write("### Expected Moves")
-        st.text_area("Copyable Expected Moves (Tab-separated)", expected_moves.to_csv(sep="\t", index=False), height=150)
+        # Expected Moves in NumPy chart format
+        expected_moves_chart = "Expiration Date\tExpected Price Movement ($)\n"
+        for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
+            t, _ = self._calculate_time_to_expiry(exp_date)
+            expected_move = self.current_price * iv * np.sqrt(t)
+            expected_moves_chart += f"{exp_date}\t±{expected_move:.2f}\n"
+        st.write("### Expected Moves (Copyable for Excel)")
+        st.text_area("Expected Moves Chart", expected_moves_chart.strip(), height=150)
 
+        # Monte Carlo Data in NumPy chart format
         num_simulations = 6
         num_days = 365
         one_year_iv = metrics[3]
@@ -204,10 +191,11 @@ class ImpliedVolatilityAnalyzer:
         date_range = [today + timedelta(days=i) for i in range(num_days)]
         formatted_dates = [date.strftime('%Y-%m-%d') for date in date_range]
 
-        df_monte_carlo = pd.DataFrame(price_paths, columns=[f"Simulation {i+1}" for i in range(num_simulations)])
-        df_monte_carlo.insert(0, "Date", formatted_dates)
-        st.write("### Monte Carlo Simulations")
-        st.text_area("Copyable Monte Carlo Data (Tab-separated)", df_monte_carlo.to_csv(sep="\t", index=False), height=300)
+        monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
+        for i in range(num_days):
+            monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{price_paths[i, j]:.2f}" for j in range(num_simulations)]) + "\n"
+        st.write("### Monte Carlo Simulations (Copyable for Excel)")
+        st.text_area("Monte Carlo Chart", monte_carlo_chart.strip(), height=300)
 
     def monte_carlo_simulation(self, num_simulations=6, num_days=365):
         metrics = self.get_iv_by_timeframes()
@@ -240,7 +228,7 @@ class ImpliedVolatilityAnalyzer:
 
         fig, ax = plt.subplots(figsize=(10, 5))
         for i in range(num_simulations):
-            ax.plot(date_range, sorted_paths[:, i], color=custom_colors[i], linewidth=1.5)
+            ax.plot(date_range, sorted_paths[:, i], color=custom_colors[i], linewidth=1.5, label=f"Path {i+1}")
 
         ax.axhline(y=S0, color='black', linestyle='--', label="Current Price")
         num_intervals = 6
@@ -252,6 +240,12 @@ class ImpliedVolatilityAnalyzer:
         ax.set_ylabel("Stock Price ($)")
         ax.legend()
         st.pyplot(fig)
+
+        st.write("#### Simulation Summary")
+        st.write(f"- **Starting Price**: ${S0:.2f}")
+        st.write(f"- **Ending Prices (1 Year)**:")
+        for i, price in enumerate(sorted_paths[-1, :]):
+            st.write(f"  - Path {i+1}: ${price:.2f}")
 
 # Streamlit UI
 st.title("📈 Implied Volatility Calculator")
