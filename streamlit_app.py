@@ -119,15 +119,15 @@ class ImpliedVolatilityAnalyzer:
         st.write(f"Current Price: ${self.current_price:.2f}")
         st.write("---")
 
-        iv_data = {
+        iv_data = pd.DataFrame({
             "Timeframe": ["Nearest", "~3 Months", "~6 Months", "~1 Year"],
             "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
             "Strike": [nearest_strike, three_month_strike, six_month_strike, one_year_strike],
             "Type": [nearest_type.upper(), three_month_type.upper(), six_month_type.upper(), one_year_type.upper()],
             "IV (%)": [f"{iv*100:.2f}" for iv in [nearest_iv, three_month_iv, six_month_iv, one_year_iv]]
-        }
+        })
         st.write("#### Implied Volatilities")
-        st.dataframe(pd.DataFrame(iv_data))
+        st.text_area("Copyable IV Data (Tab-separated)", iv_data.to_csv(sep="\t", index=False), height=150)
 
         iv_dates = [nearest_date, three_month_date, six_month_date, one_year_date]
         iv_values = [nearest_iv, three_month_iv, six_month_iv, one_year_iv]
@@ -136,11 +136,10 @@ class ImpliedVolatilityAnalyzer:
             if not np.isnan(iv):
                 t, _ = self._calculate_time_to_expiry(exp_date)
                 expected_move = self.current_price * iv * np.sqrt(t)
-                expected_moves.append(f"By {exp_date}: ±${expected_move:.2f}")
+                expected_moves.append(f"{exp_date}\t±${expected_move:.2f}")
 
         st.write("#### Expected Price Movements (IV)")
-        for move in expected_moves:
-            st.write(move)
+        st.text_area("Copyable Expected Moves (Tab-separated)", "\n".join(expected_moves), height=150)
 
         st.write("#### Historical Volatility")
         st.write(f"30-Day: {hist_vol_30d:.2f}%")
@@ -153,11 +152,10 @@ class ImpliedVolatilityAnalyzer:
             if not np.isnan(hv):
                 t = days / 252
                 expected_move = self.current_price * (hv / 100) * np.sqrt(t)
-                hv_moves.append(f"Over {days} days: ±${expected_move:.2f}")
+                hv_moves.append(f"{days} days\t±${expected_move:.2f}")
 
         st.write("#### Expected Price Movements (HV)")
-        for move in hv_moves:
-            st.write(move)
+        st.text_area("Copyable HV Moves (Tab-separated)", "\n".join(hv_moves), height=100)
 
         st.write("#### Explanation")
         st.write("- Implied volatility (IV) represents expected future price fluctuations.")
@@ -179,7 +177,7 @@ class ImpliedVolatilityAnalyzer:
             [one_year_date, one_year_strike, one_year_type.upper(), one_year_iv * 100]
         ], columns=["Expiration Date", "Strike Price", "Option Type", "Implied Volatility (%)"])
         st.write("### IV Data")
-        st.dataframe(iv_data)
+        st.text_area("Copyable IV Data (Tab-separated)", iv_data.to_csv(sep="\t", index=False), height=150)
 
         expected_moves = pd.DataFrame([
             [nearest_date, self.current_price * nearest_iv * np.sqrt(self._calculate_time_to_expiry(nearest_date)[0])],
@@ -188,7 +186,7 @@ class ImpliedVolatilityAnalyzer:
             [one_year_date, self.current_price * one_year_iv * np.sqrt(self._calculate_time_to_expiry(one_year_date)[0])]
         ], columns=["Expiration Date", "Expected Price Movement ($)"])
         st.write("### Expected Moves")
-        st.dataframe(expected_moves)
+        st.text_area("Copyable Expected Moves (Tab-separated)", expected_moves.to_csv(sep="\t", index=False), height=150)
 
         num_simulations = 6
         num_days = 365
@@ -209,7 +207,7 @@ class ImpliedVolatilityAnalyzer:
         df_monte_carlo = pd.DataFrame(price_paths, columns=[f"Simulation {i+1}" for i in range(num_simulations)])
         df_monte_carlo.insert(0, "Date", formatted_dates)
         st.write("### Monte Carlo Simulations")
-        st.dataframe(df_monte_carlo)
+        st.text_area("Copyable Monte Carlo Data (Tab-separated)", df_monte_carlo.to_csv(sep="\t", index=False), height=300)
 
     def monte_carlo_simulation(self, num_simulations=6, num_days=365):
         metrics = self.get_iv_by_timeframes()
