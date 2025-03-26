@@ -156,25 +156,43 @@ class ImpliedVolatilityAnalyzer:
         nearest_strike, three_month_strike, six_month_strike, one_year_strike, \
         nearest_type, three_month_type, six_month_type, one_year_type = metrics
 
-        # IV Data in NumPy chart format
+        # IV Data Table
+        iv_data = pd.DataFrame({
+            "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
+            "Strike Price": [f"${nearest_strike:.2f}", f"${three_month_strike:.2f}", f"${six_month_strike:.2f}", f"${one_year_strike:.2f}"],
+            "Option Type": [nearest_type.upper(), three_month_type.upper(), six_month_type.upper(), one_year_type.upper()],
+            "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
+        })
+        st.write("### IV Data")
+        st.table(iv_data)
+
+        # Copyable IV Data
         iv_chart = "Expiration Date\tStrike Price\tOption Type\tImplied Volatility (%)\n"
         iv_chart += f"{nearest_date}\t{nearest_strike:.2f}\t{nearest_type.upper()}\t{nearest_iv*100:.2f}\n"
         iv_chart += f"{three_month_date}\t{three_month_strike:.2f}\t{three_month_type.upper()}\t{three_month_iv*100:.2f}\n"
         iv_chart += f"{six_month_date}\t{six_month_strike:.2f}\t{six_month_type.upper()}\t{six_month_iv*100:.2f}\n"
         iv_chart += f"{one_year_date}\t{one_year_strike:.2f}\t{one_year_type.upper()}\t{one_year_iv*100:.2f}"
-        st.write("### IV Data (Copyable for Excel)")
-        st.text_area("IV Chart", iv_chart, height=150)
+        st.code(iv_chart, language="text")
 
-        # Expected Moves in NumPy chart format
+        # Expected Moves Table
+        expected_moves_data = []
+        for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
+            t, _ = self._calculate_time_to_expiry(exp_date)
+            expected_move = self.current_price * iv * np.sqrt(t)
+            expected_moves_data.append([exp_date, f"±${expected_move:.2f}"])
+        expected_moves_df = pd.DataFrame(expected_moves_data, columns=["Expiration Date", "Expected Price Movement ($)"])
+        st.write("### Expected Moves")
+        st.table(expected_moves_df)
+
+        # Copyable Expected Moves
         expected_moves_chart = "Expiration Date\tExpected Price Movement ($)\n"
         for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
             t, _ = self._calculate_time_to_expiry(exp_date)
             expected_move = self.current_price * iv * np.sqrt(t)
             expected_moves_chart += f"{exp_date}\t±{expected_move:.2f}\n"
-        st.write("### Expected Moves (Copyable for Excel)")
-        st.text_area("Expected Moves Chart", expected_moves_chart.strip(), height=150)
+        st.code(expected_moves_chart.strip(), language="text")
 
-        # Monte Carlo Data in NumPy chart format
+        # Monte Carlo Data Table (showing only a subset for display)
         num_simulations = 6
         num_days = 365
         one_year_iv = metrics[3]
@@ -191,11 +209,21 @@ class ImpliedVolatilityAnalyzer:
         date_range = [today + timedelta(days=i) for i in range(num_days)]
         formatted_dates = [date.strftime('%Y-%m-%d') for date in date_range]
 
+        # Display only the first 5 rows for the table
+        monte_carlo_data = {
+            "Date": formatted_dates[:5],
+        }
+        for i in range(num_simulations):
+            monte_carlo_data[f"Simulation {i+1}"] = [f"${price:.2f}" for price in price_paths[:5, i]]
+        monte_carlo_df = pd.DataFrame(monte_carlo_data)
+        st.write("### Monte Carlo Simulations (First 5 Days)")
+        st.table(monte_carlo_df)
+
+        # Copyable Monte Carlo Data (full dataset)
         monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
         for i in range(num_days):
             monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{price_paths[i, j]:.2f}" for j in range(num_simulations)]) + "\n"
-        st.write("### Monte Carlo Simulations (Copyable for Excel)")
-        st.text_area("Monte Carlo Chart", monte_carlo_chart.strip(), height=300)
+        st.code(monte_carlo_chart.strip(), language="text")
 
     def monte_carlo_simulation(self, num_simulations=6, num_days=365):
         metrics = self.get_iv_by_timeframes()
