@@ -133,8 +133,16 @@ if page == "📊 Stock Analysis":
     if st.button("Calculate IV"):
         if stock_ticker:
             analyzer = ImpliedVolatilityAnalyzer(stock_ticker)
-            iv = analyzer.get_nearest_iv()
-            st.success(f"**Implied Volatility for {stock_ticker}: {iv:.2f}%**")
+            iv_data = analyzer.get_nearest_iv()
+            if isinstance(iv_data, tuple):
+                iv, _, _ = iv_data  # Extract only the implied volatility
+            else:
+                iv = iv_data  # If it's already a number (NaN case)
+
+            if np.isnan(iv):
+                st.error(f"⚠️ No implied volatility found for {stock_ticker}. Try another ticker.")
+            else:
+                st.success(f"📉 **Implied Volatility for {stock_ticker}: {iv*100:.2f}%**")
         else:
             st.error("⚠️ Please enter a valid stock ticker.")
 
