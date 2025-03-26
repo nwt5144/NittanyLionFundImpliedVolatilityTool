@@ -18,9 +18,9 @@ custom_css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 150px; /* Adjust height as needed */
+    height: 100px; /* Adjust height as needed */
     width: 100%;
-    opacity: 0.5; /* Adjust opacity to make the logo subtle */
+    opacity: 1; /* Adjust opacity to make the logo subtle */
     position: relative;
     margin-bottom: 20px; /* Space between header and content */
 }}
