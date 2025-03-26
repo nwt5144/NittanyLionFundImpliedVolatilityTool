@@ -185,7 +185,6 @@ if page == "📊 Stock Analysis":
 
 # ======================== PORTFOLIO ANALYSIS PAGE ========================
 elif page == "📈 Portfolio Analysis":
-    st.page_title="Portfolio Implied Volatility", layout="wide"
 
     st.title("📊 Portfolio Implied Volatility Calculator")
     st.write("Enter up to **12 stock tickers** and their portfolio weights to calculate the **implied volatility**.")
