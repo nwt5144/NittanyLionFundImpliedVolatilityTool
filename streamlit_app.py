@@ -27,7 +27,7 @@ custom_css = f"""
     background-repeat: no-repeat;
     height: 400px; /* Height to ensure the logo is fully visible */
     width: 100%;
-    opacity: 0.5; /* Adjust opacity to make the logo subtle */
+    opacity: 1; /* Adjust opacity to make the logo subtle */
     margin-bottom: 20px; /* Space between header and content */
 }}
 
