@@ -247,7 +247,7 @@ class ImpliedVolatilityAnalyzer:
         for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
             t, _ = self._calculate_time_to_expiry(exp_date)
             expected_move = self.current_price * iv * np.sqrt(t)
-            expected_moves_chart += f"{exp_date}\t±{expected_move:.2f}\n"
+            expected_moves_chart += f"{exp_date}\t{expected_move:.2f}\n"
         st.code(expected_moves_chart.strip(), language="text")
 
         # Monte Carlo Data Table (showing only a subset for display)
