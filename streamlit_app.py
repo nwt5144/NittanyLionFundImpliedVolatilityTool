@@ -212,7 +212,7 @@ class ImpliedVolatilityAnalyzer:
         nearest_strike, three_month_strike, six_month_strike, one_year_strike, \
         nearest_type, three_month_type, six_month_type, one_year_type = metrics
 
-        st.write("###PASTE FOLLOWING INTO CELL A1 IN EXCEL FILE")
+        st.write("**PASTE FOLLOWING INTO CELL A1 IN EXCEL FILE**")
 
         # IV Data Table
         # iv_data = pd.DataFrame({
