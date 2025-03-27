@@ -25,7 +25,7 @@ custom_css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 200px; /* Height to ensure the logo is fully visible */
+    height: 400px; /* Height to ensure the logo is fully visible */
     width: 100%;
     opacity: 0.5; /* Adjust opacity to make the logo subtle */
     margin-bottom: 20px; /* Space between header and content */
