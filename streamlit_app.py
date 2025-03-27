@@ -460,7 +460,7 @@ class PortfolioImpliedVolatilityAnalyzer:
 
 
 # Copyable Portfolio IV Data
-        st.write("#### Portfolio IV Data (Copyable)")
+        st.write("## Paste this output into cell F1 in Excel File**")
         # iv_data = pd.DataFrame({
         #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
         #     "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
