@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
+# Debugging statement to confirm the app is rendering
+st.write("App is loading...")
+
 # URL of the logo image in your GitHub repo
 background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/nittany_lion_fund_llc_psu_logo.jfif"
 
@@ -16,7 +19,7 @@ custom_css = f"""
 .stApp {{
     padding-top: 0 !important;
     margin-top: 0 !important;
-    position: relative;
+    background-color: #f5f5f5; /* Light gray background to confirm rendering */
 }}
 
 /* Create a header section with the logo as the background */
@@ -25,13 +28,9 @@ custom_css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 200px; /* Increased height to ensure the logo is fully visible */
+    height: 200px; /* Height to ensure the logo is fully visible */
     width: 100%;
     opacity: 0.5; /* Adjust opacity to make the logo subtle */
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: -1; /* Ensure the header stays behind the content */
     margin-bottom: 20px; /* Space between header and content */
 }}
 
@@ -44,7 +43,7 @@ h1 {{
 
 /* Ensure content below the header has enough padding */
 div[data-testid="stAppViewContainer"] > div {{
-    padding-top: 220px; /* Adjust based on the height of the header */
+    padding-top: 20px; /* Reduced padding to ensure content is visible */
 }}
 </style>
 """
@@ -98,9 +97,9 @@ class ImpliedVolatilityAnalyzer:
 
     def calculate_iv(self, options_chain, expiration_date):
         calls = options_chain.calls.copy()
-        calls['flag'] = 'Call'
+        calls['flag'] = 'call'  # Use lowercase to match option_type
         puts = options_chain.puts.copy()
-        puts['flag'] = 'Put'
+        puts['flag'] = 'put'  # Use lowercase to match option_type
         all_options = pd.concat([calls, puts])
         all_options['strike_diff'] = abs(all_options['strike'] - self.current_price)
         closest_option = all_options.loc[all_options['strike_diff'].idxmin()].copy()
@@ -113,7 +112,7 @@ class ImpliedVolatilityAnalyzer:
             K=closest_option['strike'],
             t=t,
             r=self.risk_free_rate,
-            option_type='call' if closest_option['flag'] == 'c' else 'put'
+            option_type=closest_option['flag']  # Now matches 'call' or 'put'
         )
         return iv, closest_option['strike'], closest_option['flag']
 
@@ -332,9 +331,15 @@ if st.button("Analyze"):
     try:
         analyzer = ImpliedVolatilityAnalyzer(ticker)
         st.write("## Analysis Results")
-        analyzer.display_iv_metrics()
-        analyzer.display_data_for_excel()
-        analyzer.monte_carlo_simulation()
+        
+        with st.expander("IV Metrics"):
+            analyzer.display_iv_metrics()
+        
+        with st.expander("Data for Excel"):
+            analyzer.display_data_for_excel()
+        
+        with st.expander("Monte Carlo Simulation"):
+            analyzer.monte_carlo_simulation()
             
     except Exception as e:
         st.error(f"Error: {e}")
