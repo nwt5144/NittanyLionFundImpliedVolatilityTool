@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
+# Debugging statement to confirm the app is rendering
+st.write("App is loading...")
+
 # URL of the logo image in your GitHub repo
 background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/nittany_lion_fund_llc_psu_logo.jfif"
 
@@ -25,7 +28,7 @@ custom_css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 400px; /* Height to ensure the logo is fully visible */
+    height: 200px; /* Height to ensure the logo is fully visible */
     width: 100%;
     opacity: 0.5; /* Adjust opacity to make the logo subtle */
     margin-bottom: 20px; /* Space between header and content */
@@ -54,7 +57,10 @@ class ImpliedVolatilityAnalyzer:
         self.ticker = ticker
         self.risk_free_rate = risk_free_rate
         self.stock = yf.Ticker(ticker)
-        self.current_price = self.stock.info['regularMarketPrice']
+        try:
+            self.current_price = self.stock.info['regularMarketPrice']
+        except KeyError:
+            self.current_price = self.stock.info.get('regularMarketPreviousClose', 0)
         self.available_expirations = self.stock.options
 
     def get_options_data(self, expiration_date=None):
@@ -318,19 +324,156 @@ class ImpliedVolatilityAnalyzer:
         for i, price in enumerate(sorted_paths[-1, :]):
             st.write(f"  - Path {i+1}: ${price:.2f}")
 
-# Streamlit UI
-st.title("📈 Implied Volatility Calculator")
-st.write("Enter a stock ticker to retrieve its implied volatility for different expirations.")
+class PortfolioImpliedVolatilityAnalyzer:
+    def __init__(self, tickers, weights, risk_free_rate=0.025):
+        self.tickers = [ticker for ticker in tickers if ticker]  # Remove empty tickers
+        self.weights = [weight / 100 for weight in weights if weight is not None]  # Convert percentages to decimals
+        self.risk_free_rate = risk_free_rate
+        self.analyzers = []
+        for ticker in self.tickers:
+            try:
+                analyzer = ImpliedVolatilityAnalyzer(ticker, risk_free_rate)
+                self.analyzers.append(analyzer)
+            except Exception as e:
+                st.warning(f"Could not load data for {ticker}: {e}")
 
-ticker = st.text_input("Enter a stock ticker:", "AAPL")
+    def calculate_portfolio_iv(self):
+        if not self.analyzers or len(self.weights) != len(self.analyzers):
+            return None, None, None, None, None, None, None, None
 
-if st.button("Analyze"):
-    try:
-        analyzer = ImpliedVolatilityAnalyzer(ticker)
-        st.write("## Analysis Results")
-        analyzer.display_iv_metrics()
-        analyzer.display_data_for_excel()
-        analyzer.monte_carlo_simulation()
+        # Collect IVs for each stock across time frames
+        nearest_ivs, three_month_ivs, six_month_ivs, one_year_ivs = [], [], [], []
+        dates = {"nearest": None, "three_months": None, "six_months": None, "one_year": None}
+
+        for analyzer in self.analyzers:
+            metrics = analyzer.get_iv_by_timeframes()
+            nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
+            nearest_date, three_month_date, six_month_date, one_year_date, \
+            _, _, _, _, _, _, _, _ = metrics
+
+            nearest_ivs.append(nearest_iv)
+            three_month_ivs.append(three_month_iv)
+            six_month_ivs.append(six_month_iv)
+            one_year_ivs.append(one_year_iv)
+
+            # Store the expiration dates (use the first stock's dates for display)
+            if dates["nearest"] is None:
+                dates["nearest"] = nearest_date
+                dates["three_months"] = three_month_date
+                dates["six_months"] = six_month_date
+                dates["one_year"] = one_year_date
+
+        # Calculate portfolio IVs (simplified: weighted average with a correlation factor)
+        # Assuming a correlation of 0.5 between stocks for simplicity
+        correlation = 0.5
+        def calculate_portfolio_vol(ivs, weights):
+            if not ivs or not weights:
+                return np.nan
+            weighted_ivs = np.array(ivs) * np.array(weights)
+            avg_iv = np.sum(weighted_ivs)
+            # Adjust for correlation (simplified formula)
+            # Portfolio variance = sum(w_i^2 * sigma_i^2) + sum(w_i * w_j * sigma_i * sigma_j * correlation)
+            variance = 0
+            for i in range(len(ivs)):
+                variance += (weights[i] * ivs[i])**2
+                for j in range(i + 1, len(ivs)):
+                    variance += 2 * weights[i] * weights[j] * ivs[i] * ivs[j] * correlation
+            return np.sqrt(variance)
+
+        portfolio_nearest_iv = calculate_portfolio_vol(nearest_ivs, self.weights)
+        portfolio_three_month_iv = calculate_portfolio_vol(three_month_ivs, self.weights)
+        portfolio_six_month_iv = calculate_portfolio_vol(six_month_ivs, self.weights)
+        portfolio_one_year_iv = calculate_portfolio_vol(one_year_ivs, self.weights)
+
+        return (
+            portfolio_nearest_iv, portfolio_three_month_iv, portfolio_six_month_iv, portfolio_one_year_iv,
+            dates["nearest"], dates["three_months"], dates["six_months"], dates["one_year"]
+        )
+
+    def display_portfolio_iv(self):
+        portfolio_metrics = self.calculate_portfolio_iv()
+        if portfolio_metrics[0] is None:
+            st.error("Unable to calculate portfolio implied volatility. Please ensure valid tickers and weights are provided.")
+            return
+
+        nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
+        nearest_date, three_month_date, six_month_date, one_year_date = portfolio_metrics
+
+        st.write("### Portfolio Implied Volatility")
+        st.write("#### Portfolio Composition")
+        for i, (ticker, weight) in enumerate(zip(self.tickers, self.weights)):
+            st.write(f"- {ticker}: {weight*100:.2f}%")
+
+        st.write("#### Implied Volatilities")
+        st.write(f"- **Nearest (Exp: {nearest_date})**: IV: {nearest_iv*100:.2f}%")
+        st.write(f"- **~3 Months (Exp: {three_month_date})**: IV: {three_month_iv*100:.2f}%")
+        st.write(f"- **~6 Months (Exp: {six_month_date})**: IV: {six_month_iv*100:.2f}%")
+        st.write(f"- **~1 Year (Exp: {one_year_date})**: IV: {one_year_iv*100:.2f}%")
+
+        st.write("#### Explanation")
+        st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for a correlation factor (assumed 0.5 for simplicity).")
+        st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
+
+# Streamlit Navigation
+st.sidebar.title("Navigation")
+page = st.sidebar.selectbox("Select a page:", ["Implied Volatility Calculator", "Portfolio Implied Volatility"])
+
+# Page 1: Implied Volatility Calculator (Single Stock)
+if page == "Implied Volatility Calculator":
+    st.title("📈 Implied Volatility Calculator")
+    st.write("Enter a stock ticker to retrieve its implied volatility for different expirations.")
+
+    ticker = st.text_input("Enter a stock ticker:", "AAPL")
+
+    if st.button("Analyze"):
+        try:
+            analyzer = ImpliedVolatilityAnalyzer(ticker)
+            st.write("## Analysis Results")
             
-    except Exception as e:
-        st.error(f"Error: {e}")
+            with st.expander("IV Metrics"):
+                analyzer.display_iv_metrics()
+            
+            with st.expander("Data for Excel"):
+                analyzer.display_data_for_excel()
+            
+            with st.expander("Monte Carlo Simulation"):
+                analyzer.monte_carlo_simulation()
+                
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# Page 2: Portfolio Implied Volatility
+elif page == "Portfolio Implied Volatility":
+    st.title("📊 Portfolio Implied Volatility")
+    st.write("Enter up to 12 stocks and their respective weights to calculate the portfolio's implied volatility over different time frames.")
+
+    # Create two columns for tickers and weights
+    col1, col2 = st.columns(2)
+
+    # Left column: Stock tickers
+    with col1:
+        st.subheader("Stock Tickers")
+        tickers = []
+        for i in range(12):
+            ticker = st.text_input(f"Stock {i+1}:", key=f"ticker_{i}")
+            tickers.append(ticker.upper() if ticker else "")
+
+    # Right column: Weights
+    with col2:
+        st.subheader("Weights (%)")
+        weights = []
+        for i in range(12):
+            weight = st.number_input(f"Weight {i+1} (%):", min_value=0.0, max_value=100.0, value=0.0, step=0.1, key=f"weight_{i}")
+            weights.append(weight)
+
+    if st.button("Calculate Portfolio IV"):
+        try:
+            # Validate weights
+            total_weight = sum(w for w in weights if w is not None)
+            if abs(total_weight - 100.0) > 0.01:
+                st.error(f"Total weight must equal 100%. Current total: {total_weight:.2f}%")
+            else:
+                analyzer = PortfolioImpliedVolatilityAnalyzer(tickers, weights)
+                analyzer.display_portfolio_iv()
+        except Exception as e:
+            st.error(f"Error: {e}")
