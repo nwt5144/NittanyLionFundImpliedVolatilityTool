@@ -12,16 +12,26 @@ background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfun
 # Custom CSS to create a header with the logo as the background
 custom_css = f"""
 <style>
+/* Remove default padding and margin from the top of the app */
+.stApp {{
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    position: relative;
+}}
+
 /* Create a header section with the logo as the background */
 .header {{
     background-image: url('{background_image_url}');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 100px; /* Adjust height as needed */
+    height: 200px; /* Increased height to ensure the logo is fully visible */
     width: 100%;
-    opacity: 1; /* Adjust opacity to make the logo subtle */
-    position: relative;
+    opacity: 0.5; /* Adjust opacity to make the logo subtle */
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1; /* Ensure the header stays behind the content */
     margin-bottom: 20px; /* Space between header and content */
 }}
 
@@ -34,7 +44,7 @@ h1 {{
 
 /* Ensure content below the header has enough padding */
 div[data-testid="stAppViewContainer"] > div {{
-    padding-top: 20px;
+    padding-top: 220px; /* Adjust based on the height of the header */
 }}
 </style>
 """
@@ -88,9 +98,9 @@ class ImpliedVolatilityAnalyzer:
 
     def calculate_iv(self, options_chain, expiration_date):
         calls = options_chain.calls.copy()
-        calls['flag'] = 'c'
+        calls['flag'] = 'Call'
         puts = options_chain.puts.copy()
-        puts['flag'] = 'p'
+        puts['flag'] = 'Put'
         all_options = pd.concat([calls, puts])
         all_options['strike_diff'] = abs(all_options['strike'] - self.current_price)
         closest_option = all_options.loc[all_options['strike_diff'].idxmin()].copy()
@@ -322,15 +332,9 @@ if st.button("Analyze"):
     try:
         analyzer = ImpliedVolatilityAnalyzer(ticker)
         st.write("## Analysis Results")
-        
-        with st.expander("IV Metrics"):
-            analyzer.display_iv_metrics()
-        
-        with st.expander("Data for Excel"):
-            analyzer.display_data_for_excel()
-        
-        with st.expander("Monte Carlo Simulation"):
-            analyzer.monte_carlo_simulation()
+        analyzer.display_iv_metrics()
+        analyzer.display_data_for_excel()
+        analyzer.monte_carlo_simulation()
             
     except Exception as e:
         st.error(f"Error: {e}")
