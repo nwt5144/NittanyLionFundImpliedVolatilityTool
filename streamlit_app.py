@@ -458,6 +458,26 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write(f"- **~6 Months (Exp: {six_month_date})**: IV: {six_month_iv*100:.2f}%")
         st.write(f"- **~1 Year (Exp: {one_year_date})**: IV: {one_year_iv*100:.2f}%")
 
+
+# Copyable Portfolio IV Data
+        st.write("#### Portfolio IV Data (Copyable)")
+        iv_data = pd.DataFrame({
+            "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
+            "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
+        })
+        st.table(iv_data)
+
+        iv_chart = "Expiration Date\tImplied Volatility (%)\n"
+        iv_chart += f"{nearest_date}\t{nearest_iv*100:.2f}\n"
+        iv_chart += f"{three_month_date}\t{three_month_iv*100:.2f}\n"
+        iv_chart += f"{six_month_date}\t{six_month_iv*100:.2f}\n"
+        iv_chart += f"{one_year_date}\t{one_year_iv*100:.2f}"
+        st.code(iv_chart, language="text")
+
+        st.write("#### Explanation")
+        st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
+        st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
+        
         st.write("#### Explanation")
         st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
