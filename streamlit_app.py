@@ -156,6 +156,14 @@ class ImpliedVolatilityAnalyzer:
         except:
             return np.nan
 
+    def get_historical_returns(self, days=252):
+        try:
+            historical_data = self.stock.history(period=f"{days}d")
+            historical_data["log_return"] = np.log(historical_data["Close"] / historical_data["Close"].shift(1))
+            return historical_data["log_return"].dropna()
+        except:
+            return pd.Series([])
+
     def display_iv_metrics(self):
         metrics = self.get_iv_by_timeframes()
         nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
@@ -341,9 +349,38 @@ class PortfolioImpliedVolatilityAnalyzer:
             except Exception as e:
                 st.warning(f"Could not load data for {ticker}: {e}")
 
+    def calculate_correlations(self, days=252):
+        if len(self.analyzers) < 2:
+            return None  # Need at least 2 stocks to calculate correlations
+
+        # Fetch historical returns for each stock
+        returns_dict = {}
+        for analyzer in self.analyzers:
+            returns = analyzer.get_historical_returns(days=days)
+            returns_dict[analyzer.ticker] = returns
+
+        # Align returns by date
+        returns_df = pd.DataFrame(returns_dict)
+        returns_df = returns_df.dropna()  # Drop rows with any NaN values
+
+        if returns_df.empty or len(returns_df) < 2:
+            st.warning("Not enough overlapping historical data to calculate correlations. Using default correlation of 0.5.")
+            return np.full((len(self.analyzers), len(self.analyzers)), 0.5)
+
+        # Calculate correlation matrix
+        corr_matrix = returns_df.corr().to_numpy()
+        # Ensure the diagonal is 1 (self-correlation)
+        np.fill_diagonal(corr_matrix, 1.0)
+        return corr_matrix
+
     def calculate_portfolio_iv(self):
         if not self.analyzers:
-            return None, None, None, None, None, None, None, None
+            return None, None, None, None, None, None, None, None, None
+
+        # Calculate correlations
+        corr_matrix = self.calculate_correlations()
+        if corr_matrix is None:
+            return None, None, None, None, None, None, None, None, None
 
         # Collect IVs for each stock across time frames
         nearest_ivs, three_month_ivs, six_month_ivs, one_year_ivs = [], [], [], []
@@ -369,33 +406,30 @@ class PortfolioImpliedVolatilityAnalyzer:
                     dates["one_year"] = one_year_date
             except Exception as e:
                 st.warning(f"Error calculating IV for {analyzer.ticker}: {e}")
-                return None, None, None, None, None, None, None, None
+                return None, None, None, None, None, None, None, None, None
 
-        # Calculate portfolio IVs (simplified: weighted average with a correlation factor)
-        # Assuming a correlation of 0.5 between stocks for simplicity
-        correlation = 0.5
-        def calculate_portfolio_vol(ivs, weights):
+        # Calculate portfolio IVs using the correlation matrix
+        def calculate_portfolio_vol(ivs, weights, corr_matrix):
             if not ivs or not weights:
                 return np.nan
-            weighted_ivs = np.array(ivs) * np.array(weights)
-            avg_iv = np.sum(weighted_ivs)
-            # Adjust for correlation (simplified formula)
-            # Portfolio variance = sum(w_i^2 * sigma_i^2) + sum(w_i * w_j * sigma_i * sigma_j * correlation)
+            # Portfolio variance = sum(w_i^2 * sigma_i^2) + sum(w_i * w_j * sigma_i * sigma_j * corr_ij)
             variance = 0
             for i in range(len(ivs)):
-                variance += (weights[i] * ivs[i])**2
-                for j in range(i + 1, len(ivs)):
-                    variance += 2 * weights[i] * weights[j] * ivs[i] * ivs[j] * correlation
+                variance += (weights[i] * ivs[i])**2  # w_i^2 * sigma_i^2
+                for j in range(len(ivs)):
+                    if i != j:
+                        variance += weights[i] * weights[j] * ivs[i] * ivs[j] * corr_matrix[i, j]
             return np.sqrt(variance)
 
-        portfolio_nearest_iv = calculate_portfolio_vol(nearest_ivs, self.weights)
-        portfolio_three_month_iv = calculate_portfolio_vol(three_month_ivs, self.weights)
-        portfolio_six_month_iv = calculate_portfolio_vol(six_month_ivs, self.weights)
-        portfolio_one_year_iv = calculate_portfolio_vol(one_year_ivs, self.weights)
+        portfolio_nearest_iv = calculate_portfolio_vol(nearest_ivs, self.weights, corr_matrix)
+        portfolio_three_month_iv = calculate_portfolio_vol(three_month_ivs, self.weights, corr_matrix)
+        portfolio_six_month_iv = calculate_portfolio_vol(six_month_ivs, self.weights, corr_matrix)
+        portfolio_one_year_iv = calculate_portfolio_vol(one_year_ivs, self.weights, corr_matrix)
 
         return (
             portfolio_nearest_iv, portfolio_three_month_iv, portfolio_six_month_iv, portfolio_one_year_iv,
-            dates["nearest"], dates["three_months"], dates["six_months"], dates["one_year"]
+            dates["nearest"], dates["three_months"], dates["six_months"], dates["one_year"],
+            corr_matrix
         )
 
     def display_portfolio_iv(self):
@@ -405,12 +439,20 @@ class PortfolioImpliedVolatilityAnalyzer:
             return
 
         nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
-        nearest_date, three_month_date, six_month_date, one_year_date = portfolio_metrics
+        nearest_date, three_month_date, six_month_date, one_year_date, \
+        corr_matrix = portfolio_metrics
 
         st.write("### Portfolio Implied Volatility")
         st.write("#### Portfolio Composition")
         for ticker, weight in self.ticker_weight_pairs:
             st.write(f"- {ticker}: {weight*100:.2f}%")
+
+        st.write("#### Correlation Matrix")
+        if corr_matrix is not None and len(self.tickers) > 1:
+            corr_df = pd.DataFrame(corr_matrix, index=self.tickers, columns=self.tickers)
+            st.table(corr_df.round(2))
+        else:
+            st.write("Correlation matrix not available (less than 2 stocks).")
 
         st.write("#### Implied Volatilities")
         st.write(f"- **Nearest (Exp: {nearest_date})**: IV: {nearest_iv*100:.2f}%")
@@ -419,7 +461,7 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write(f"- **~1 Year (Exp: {one_year_date})**: IV: {one_year_iv*100:.2f}%")
 
         st.write("#### Explanation")
-        st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for a correlation factor (assumed 0.5 for simplicity).")
+        st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
 
 # Streamlit Navigation
