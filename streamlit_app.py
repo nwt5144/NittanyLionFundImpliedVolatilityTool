@@ -62,6 +62,8 @@ class ImpliedVolatilityAnalyzer:
         except KeyError:
             self.current_price = self.stock.info.get('regularMarketPreviousClose', 0)
         self.available_expirations = self.stock.options
+        if not self.available_expirations:
+            raise ValueError(f"No options data available for {self.ticker}")
 
     def get_options_data(self, expiration_date=None):
         if expiration_date is None:
@@ -326,8 +328,10 @@ class ImpliedVolatilityAnalyzer:
 
 class PortfolioImpliedVolatilityAnalyzer:
     def __init__(self, tickers, weights, risk_free_rate=0.025):
-        self.tickers = [ticker for ticker in tickers if ticker]  # Remove empty tickers
-        self.weights = [weight / 100 for weight in weights if weight is not None]  # Convert percentages to decimals
+        # Pair tickers and weights, filter out empty tickers and zero weights
+        self.ticker_weight_pairs = [(ticker, weight / 100) for ticker, weight in zip(tickers, weights) if ticker and weight > 0]
+        self.tickers = [pair[0] for pair in self.ticker_weight_pairs]
+        self.weights = [pair[1] for pair in self.ticker_weight_pairs]
         self.risk_free_rate = risk_free_rate
         self.analyzers = []
         for ticker in self.tickers:
@@ -338,7 +342,7 @@ class PortfolioImpliedVolatilityAnalyzer:
                 st.warning(f"Could not load data for {ticker}: {e}")
 
     def calculate_portfolio_iv(self):
-        if not self.analyzers or len(self.weights) != len(self.analyzers):
+        if not self.analyzers:
             return None, None, None, None, None, None, None, None
 
         # Collect IVs for each stock across time frames
@@ -346,22 +350,26 @@ class PortfolioImpliedVolatilityAnalyzer:
         dates = {"nearest": None, "three_months": None, "six_months": None, "one_year": None}
 
         for analyzer in self.analyzers:
-            metrics = analyzer.get_iv_by_timeframes()
-            nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
-            nearest_date, three_month_date, six_month_date, one_year_date, \
-            _, _, _, _, _, _, _, _ = metrics
+            try:
+                metrics = analyzer.get_iv_by_timeframes()
+                nearest_iv, three_month_iv, six_month_iv, one_year_iv, \
+                nearest_date, three_month_date, six_month_date, one_year_date, \
+                _, _, _, _, _, _, _, _ = metrics
 
-            nearest_ivs.append(nearest_iv)
-            three_month_ivs.append(three_month_iv)
-            six_month_ivs.append(six_month_iv)
-            one_year_ivs.append(one_year_iv)
+                nearest_ivs.append(nearest_iv)
+                three_month_ivs.append(three_month_iv)
+                six_month_ivs.append(six_month_iv)
+                one_year_ivs.append(one_year_iv)
 
-            # Store the expiration dates (use the first stock's dates for display)
-            if dates["nearest"] is None:
-                dates["nearest"] = nearest_date
-                dates["three_months"] = three_month_date
-                dates["six_months"] = six_month_date
-                dates["one_year"] = one_year_date
+                # Store the expiration dates (use the first stock's dates for display)
+                if dates["nearest"] is None:
+                    dates["nearest"] = nearest_date
+                    dates["three_months"] = three_month_date
+                    dates["six_months"] = six_month_date
+                    dates["one_year"] = one_year_date
+            except Exception as e:
+                st.warning(f"Error calculating IV for {analyzer.ticker}: {e}")
+                return None, None, None, None, None, None, None, None
 
         # Calculate portfolio IVs (simplified: weighted average with a correlation factor)
         # Assuming a correlation of 0.5 between stocks for simplicity
@@ -401,7 +409,7 @@ class PortfolioImpliedVolatilityAnalyzer:
 
         st.write("### Portfolio Implied Volatility")
         st.write("#### Portfolio Composition")
-        for i, (ticker, weight) in enumerate(zip(self.tickers, self.weights)):
+        for ticker, weight in self.ticker_weight_pairs:
             st.write(f"- {ticker}: {weight*100:.2f}%")
 
         st.write("#### Implied Volatilities")
