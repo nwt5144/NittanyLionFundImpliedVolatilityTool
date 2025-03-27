@@ -478,9 +478,6 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
         
-        st.write("#### Explanation")
-        st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
-        st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
 
 # Streamlit Navigation
 st.sidebar.title("Navigation")
