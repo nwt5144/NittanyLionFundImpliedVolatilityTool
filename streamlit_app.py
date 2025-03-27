@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
-# Debugging statement to confirm the app is rendering
-st.write("App is loading...")
-
 # URL of the logo image in your GitHub repo
 background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/nittany_lion_fund_llc_psu_logo.jfif"
 
@@ -28,7 +25,7 @@ custom_css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    height: 200px; /* Height to ensure the logo is fully visible */
+    height: 400px; /* Height to ensure the logo is fully visible */
     width: 100%;
     opacity: 0.5; /* Adjust opacity to make the logo subtle */
     margin-bottom: 20px; /* Space between header and content */
