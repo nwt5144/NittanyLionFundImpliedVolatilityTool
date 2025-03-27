@@ -212,8 +212,8 @@ class ImpliedVolatilityAnalyzer:
         nearest_strike, three_month_strike, six_month_strike, one_year_strike, \
         nearest_type, three_month_type, six_month_type, one_year_type = metrics
 
-        st.write("## For each of following three outputs: Hover over output and click small square that appears in top right corner**")
-        st.write("## Paste first output into cell A1 in Excel File**")
+        st.write("## For each of following three outputs: Hover over output and click small square that appears in top right corner")
+        st.write("## Paste first output into cell A1 in Excel File")
         # IV Data Table
         # iv_data = pd.DataFrame({
         #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
@@ -241,7 +241,7 @@ class ImpliedVolatilityAnalyzer:
         # expected_moves_df = pd.DataFrame(expected_moves_data, columns=["Expiration Date", "Expected Price Movement ($)"])
         # st.write("### Expected Moves")
         # st.table(expected_moves_df)
-        st.write("## Paste second output into cell A6 in Excel File**")
+        st.write("## Paste second output into cell A6 in Excel File")
         # Copyable Expected Moves
         expected_moves_chart = "Expiration Date\tExpected Price Movement ($)\n"
         for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
@@ -275,7 +275,7 @@ class ImpliedVolatilityAnalyzer:
             monte_carlo_data[f"Simulation {i+1}"] = [f"${price:.2f}" for price in price_paths[:5, i]]
         monte_carlo_df = pd.DataFrame(monte_carlo_data)
         
-        st.write("## Paste third output into cell A11 in Excel File**")
+        st.write("## Paste third output into cell A11 in Excel File")
         # Copyable Monte Carlo Data (full dataset)
         monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
         for i in range(num_days):
@@ -460,7 +460,7 @@ class PortfolioImpliedVolatilityAnalyzer:
 
 
 # Copyable Portfolio IV Data
-        st.write("## Paste this output into cell F1 in Excel File**")
+        st.write("## Paste this output into cell F1 in Excel File")
         # iv_data = pd.DataFrame({
         #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
         #     "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
