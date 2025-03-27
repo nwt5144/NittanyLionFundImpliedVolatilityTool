@@ -461,11 +461,11 @@ class PortfolioImpliedVolatilityAnalyzer:
 
 # Copyable Portfolio IV Data
         st.write("#### Portfolio IV Data (Copyable)")
-        iv_data = pd.DataFrame({
-            "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
-            "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
-        })
-        st.table(iv_data)
+        # iv_data = pd.DataFrame({
+        #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
+        #     "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
+        # })
+        # st.table(iv_data)
 
         iv_chart = "Expiration Date\tImplied Volatility (%)\n"
         iv_chart += f"{nearest_date}\t{nearest_iv*100:.2f}\n"
