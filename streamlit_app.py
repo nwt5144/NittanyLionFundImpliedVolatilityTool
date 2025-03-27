@@ -328,15 +328,9 @@ if st.button("Analyze"):
     try:
         analyzer = ImpliedVolatilityAnalyzer(ticker)
         st.write("## Analysis Results")
-        
-        with st.expander("IV Metrics"):
-            analyzer.display_iv_metrics()
-        
-        with st.expander("Data for Excel"):
-            analyzer.display_data_for_excel()
-        
-        with st.expander("Monte Carlo Simulation"):
-            analyzer.monte_carlo_simulation()
+        analyzer.display_iv_metrics()
+        analyzer.display_data_for_excel()
+        analyzer.monte_carlo_simulation()
             
     except Exception as e:
         st.error(f"Error: {e}")
