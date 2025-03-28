@@ -212,18 +212,12 @@ class ImpliedVolatilityAnalyzer:
         nearest_strike, three_month_strike, six_month_strike, one_year_strike, \
         nearest_type, three_month_type, six_month_type, one_year_type = metrics
 
-        st.write("## For each of following outputs: Copy the data using the link that appears when hovering over the output titles")
-        st.write("## Paste into cell C8 in ""Table"" Excel Sheet")
-        # IV Data Table
-        # iv_data = pd.DataFrame({
-        #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
-        #     "Strike Price": [f"${nearest_strike:.2f}", f"${three_month_strike:.2f}", f"${six_month_strike:.2f}", f"${one_year_strike:.2f}"],
-        #     "Option Type": [nearest_type.upper(), three_month_type.upper(), six_month_type.upper(), one_year_type.upper()],
-        #     "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
-        # })
-        # st.write("### IV Data")
-        # st.table(iv_data)
+        # Calculate historical volatilities within this method
+        hist_vol_30d = self.get_historical_volatility(days=30)
+        hist_vol_1y = self.get_historical_volatility(days=252)
 
+        st.write("## For each of following outputs: Copy the data using the link that appears when hovering over the output titles")
+        st.write("## Paste into cell C8 in \"Table\" Excel Sheet")
         # Copyable IV Data
         iv_chart = "Expiration Date\tStrike Price\tOption Type\tImplied Volatility (%)\n"
         iv_chart += f"{nearest_date}\t{nearest_strike:.2f}\t{nearest_type.upper()}\t{nearest_iv*100:.2f}\n"
@@ -232,7 +226,7 @@ class ImpliedVolatilityAnalyzer:
         iv_chart += f"{one_year_date}\t{one_year_strike:.2f}\t{one_year_type.upper()}\t{one_year_iv*100:.2f}"
         st.code(iv_chart, language="text")
 
-        st.write("## Paste into cell C20 in ""Table"" Excel Sheet")
+        st.write("## Paste into cell C20 in \"Table\" Excel Sheet")
         # Copyable Historical Data (1 year)
         historical_data = self.stock.history(period="1y")
         historical_data["log_return"] = np.log(historical_data["Close"] / historical_data["Close"].shift(1))
@@ -243,19 +237,7 @@ class ImpliedVolatilityAnalyzer:
             historical_chart += f"{formatted_date}\t{row['Close']:.2f}\t{row['log_return']:.6f}\n"
         st.code(historical_chart.strip(), language="text")
 
-
-        # Expected Moves Table
-        # expected_moves_data = []
-        # for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
-        #     t, _ = self._calculate_time_to_expiry(exp_date)
-        #     expected_move = self.current_price * iv * np.sqrt(t)
-        #     expected_moves_data.append([exp_date, f"±${expected_move:.2f}"])
-        # expected_moves_df = pd.DataFrame(expected_moves_data, columns=["Expiration Date", "Expected Price Movement ($)"])
-        # st.write("### Expected Moves")
-        # st.table(expected_moves_df)
-        st.write("## Paste into cell C14 in ""Table"" Excel Sheet")
-        # Copyable Expected Moves
-        st.write("## Paste fourth output into cell A17 in Excel File")
+        st.write("## Paste into cell C14 in \"Table\" Excel Sheet")
         # Copyable Historical Volatility Data
         hv_chart = "Period\tHistorical Volatility (%)\tExpected Price Movement ($)\n"
         expected_move_30d = self.current_price * (hist_vol_30d / 100) * np.sqrt(30 / 252) if not np.isnan(hist_vol_30d) else np.nan
@@ -264,7 +246,8 @@ class ImpliedVolatilityAnalyzer:
         hv_chart += f"1-Year\t{hist_vol_1y:.2f}\t{expected_move_1y:.2f}"
         st.code(hv_chart, language="text")
 
-        # Monte Carlo Data Table (showing only a subset for display)
+        st.write("## Paste into cell C5 in \"Monte Carlo\" Excel Sheet")
+        # Copyable Monte Carlo Data (full dataset)
         num_simulations = 6
         num_days = 365
         one_year_iv = metrics[3]
@@ -281,16 +264,6 @@ class ImpliedVolatilityAnalyzer:
         date_range = [today + timedelta(days=i) for i in range(num_days)]
         formatted_dates = [date.strftime('%Y-%m-%d') for date in date_range]
 
-        # Display only the first 5 rows for the table
-        monte_carlo_data = {
-            "Date": formatted_dates[:5],
-        }
-        for i in range(num_simulations):
-            monte_carlo_data[f"Simulation {i+1}"] = [f"${price:.2f}" for price in price_paths[:5, i]]
-        monte_carlo_df = pd.DataFrame(monte_carlo_data)
-        
-        st.write("## Paste into cell C5 in ""Monte Carlo"" Excel Sheet")
-        # Copyable Monte Carlo Data (full dataset)
         monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
         for i in range(num_days):
             monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{price_paths[i, j]:.2f}" for j in range(num_simulations)]) + "\n"
@@ -472,15 +445,8 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write(f"- **~6 Months (Exp: {six_month_date})**: IV: {six_month_iv*100:.2f}%")
         st.write(f"- **~1 Year (Exp: {one_year_date})**: IV: {one_year_iv*100:.2f}%")
 
-
-# Copyable Portfolio IV Data
+        # Copyable Portfolio IV Data
         st.write("## Paste this output into cell F1 in Excel File")
-        # iv_data = pd.DataFrame({
-        #     "Expiration Date": [nearest_date, three_month_date, six_month_date, one_year_date],
-        #     "Implied Volatility (%)": [f"{nearest_iv*100:.2f}", f"{three_month_iv*100:.2f}", f"{six_month_iv*100:.2f}", f"{one_year_iv*100:.2f}"]
-        # })
-        # st.table(iv_data)
-
         iv_chart = "Expiration Date\tImplied Volatility (%)\n"
         iv_chart += f"{nearest_date}\t{nearest_iv*100:.2f}\n"
         iv_chart += f"{three_month_date}\t{three_month_iv*100:.2f}\n"
@@ -491,7 +457,6 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write("#### Explanation")
         st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
-        
 
 # Streamlit Navigation
 st.sidebar.title("Navigation")
@@ -511,7 +476,6 @@ if page == "Implied Volatility Calculator":
             analyzer.display_iv_metrics()
             analyzer.display_data_for_excel()
             analyzer.monte_carlo_simulation()
-                
         except Exception as e:
             st.error(f"Error: {e}")
 
