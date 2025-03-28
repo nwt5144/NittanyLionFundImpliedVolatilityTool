@@ -226,18 +226,18 @@ class ImpliedVolatilityAnalyzer:
         iv_chart += f"{one_year_date}\t{one_year_strike:.2f}\t{one_year_type.upper()}\t{one_year_iv*100:.2f}"
         st.code(iv_chart, language="text")
 
-        st.write("## Paste into cell C20 in \"Table\" Excel Sheet")
-        # Copyable Historical Data (1 year)
-        historical_data = self.stock.history(period="1y")
-        historical_data["log_return"] = np.log(historical_data["Close"] / historical_data["Close"].shift(1))
-        historical_data = historical_data[["Close", "log_return"]].dropna()
-        historical_chart = "Date\tClose Price ($)\tLog Return\n"
-        for date, row in historical_data.iterrows():
-            formatted_date = date.strftime('%Y-%m-%d')
-            historical_chart += f"{formatted_date}\t{row['Close']:.2f}\t{row['log_return']:.6f}\n"
-        st.code(historical_chart.strip(), language="text")
-
         st.write("## Paste into cell C14 in \"Table\" Excel Sheet")
+        # Copyable Expected Price Movements (IV)
+        expected_moves_chart = "Expiration Date\tExpected Price Movement ($)\n"
+        for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
+            if not np.isnan(iv):
+                t, _ = self._calculate_time_to_expiry(exp_date)
+                expected_move = self.current_price * iv * np.sqrt(t)
+                expected_moves_chart += f"{exp_date}\t{expected_move:.2f}\n"
+        st.code(expected_moves_chart.strip(), language="text")
+
+
+        st.write("## Paste into cell C20 in \"Table\" Excel Sheet")
         # Copyable Historical Volatility Data
         hv_chart = "Period\tHistorical Volatility (%)\tExpected Price Movement ($)\n"
         expected_move_30d = self.current_price * (hist_vol_30d / 100) * np.sqrt(30 / 252) if not np.isnan(hist_vol_30d) else np.nan
