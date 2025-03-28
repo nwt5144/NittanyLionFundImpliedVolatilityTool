@@ -248,25 +248,40 @@ class ImpliedVolatilityAnalyzer:
 
         st.write("## Paste into cell C5 in \"Monte Carlo\" Excel Sheet")
         # Copyable Monte Carlo Data (full dataset)
-        num_simulations = 6
+        num_paths = 6  # Number of final paths to display
+        sims_per_path = 1000  # Number of simulations to average for each path
         num_days = 365
         one_year_iv = metrics[3]
+        if np.isnan(one_year_iv) or one_year_iv <= 0:
+            st.error("Error: 1-year IV is invalid. Cannot run Monte Carlo simulation.")
+            return
+
         daily_volatility = one_year_iv / np.sqrt(252)
         S0 = self.current_price
 
-        price_paths = np.zeros((num_days, num_simulations))
-        price_paths[0, :] = S0
-        for t in range(1, num_days):
-            random_returns = np.random.normal(loc=0, scale=daily_volatility, size=num_simulations)
-            price_paths[t, :] = price_paths[t - 1, :] * np.exp(random_returns)
+        # Array to store the final 6 averaged paths: (num_days, num_paths)
+        averaged_price_paths = np.zeros((num_days, num_paths))
+
+        # For each of the 6 paths, run 1000 simulations and average them
+        for path in range(num_paths):
+            # Array for this path's simulations: (num_days, sims_per_path)
+            price_paths = np.zeros((num_days, sims_per_path))
+            price_paths[0, :] = S0  # Set initial price for all simulations
+            # Run 1000 simulations for this path
+            for t in range(1, num_days):
+                random_returns = np.random.normal(loc=0, scale=daily_volatility, size=sims_per_path)
+                price_paths[t, :] = price_paths[t - 1, :] * np.exp(random_returns)
+            # Average the 1000 simulations for this path at each day
+            averaged_price_paths[:, path] = np.mean(price_paths, axis=1)
 
         today = datetime.today()
         date_range = [today + timedelta(days=i) for i in range(num_days)]
         formatted_dates = [date.strftime('%Y-%m-%d') for date in date_range]
 
-        monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
+        # Output the 6 averaged paths
+        monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_paths)]) + "\n"
         for i in range(num_days):
-            monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{price_paths[i, j]:.2f}" for j in range(num_simulations)]) + "\n"
+            monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{averaged_price_paths[i, j]:.2f}" for j in range(num_paths)]) + "\n"
         st.code(monte_carlo_chart.strip(), language="text")
 
     def monte_carlo_simulation(self, num_simulations=6, num_days=365):
