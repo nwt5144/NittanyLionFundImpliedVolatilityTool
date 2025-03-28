@@ -247,9 +247,11 @@ class ImpliedVolatilityAnalyzer:
         st.code(hv_chart, language="text")
 
         st.write("## Paste into cell C5 in \"Monte Carlo\" Excel Sheet")
-        # Copyable Monte Carlo Data (full dataset)
+
+        # Copyable Monte Carlo Data (full dataset with averaged paths)
+        
         num_paths = 6  # Number of final paths to display
-        sims_per_path = 1000  # Number of simulations to average for each path
+        sims_per_path = 5  # Number of simulations to average for each path
         num_days = 365
         one_year_iv = metrics[3]
         if np.isnan(one_year_iv) or one_year_iv <= 0:
@@ -283,6 +285,7 @@ class ImpliedVolatilityAnalyzer:
         for i in range(num_days):
             monte_carlo_chart += f"{formatted_dates[i]}\t" + "\t".join([f"{averaged_price_paths[i, j]:.2f}" for j in range(num_paths)]) + "\n"
         st.code(monte_carlo_chart.strip(), language="text")
+        
 
     def monte_carlo_simulation(self, num_simulations=6, num_days=365):
         metrics = self.get_iv_by_timeframes()
