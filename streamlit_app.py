@@ -255,12 +255,14 @@ class ImpliedVolatilityAnalyzer:
         # st.table(expected_moves_df)
         st.write("## Paste into cell C14 in ""Table"" Excel Sheet")
         # Copyable Expected Moves
-        expected_moves_chart = "Expiration Date\tExpected Price Movement ($)\n"
-        for iv, exp_date in zip([nearest_iv, three_month_iv, six_month_iv, one_year_iv], [nearest_date, three_month_date, six_month_date, one_year_date]):
-            t, _ = self._calculate_time_to_expiry(exp_date)
-            expected_move = self.current_price * iv * np.sqrt(t)
-            expected_moves_chart += f"{exp_date}\t{expected_move:.2f}\n"
-        st.code(expected_moves_chart.strip(), language="text")
+        st.write("## Paste fourth output into cell A17 in Excel File")
+        # Copyable Historical Volatility Data
+        hv_chart = "Period\tHistorical Volatility (%)\tExpected Price Movement ($)\n"
+        expected_move_30d = self.current_price * (hist_vol_30d / 100) * np.sqrt(30 / 252) if not np.isnan(hist_vol_30d) else np.nan
+        expected_move_1y = self.current_price * (hist_vol_1y / 100) * np.sqrt(252 / 252) if not np.isnan(hist_vol_1y) else np.nan
+        hv_chart += f"30-Day\t{hist_vol_30d:.2f}\t{expected_move_30d:.2f}\n"
+        hv_chart += f"1-Year\t{hist_vol_1y:.2f}\t{expected_move_1y:.2f}"
+        st.code(hv_chart, language="text")
 
         # Monte Carlo Data Table (showing only a subset for display)
         num_simulations = 6
@@ -287,7 +289,7 @@ class ImpliedVolatilityAnalyzer:
             monte_carlo_data[f"Simulation {i+1}"] = [f"${price:.2f}" for price in price_paths[:5, i]]
         monte_carlo_df = pd.DataFrame(monte_carlo_data)
         
-        st.writest.write("## Paste into cell C5 in ""Monte Carlo"" Excel Sheet")
+        st.write("## Paste into cell C5 in ""Monte Carlo"" Excel Sheet")
         # Copyable Monte Carlo Data (full dataset)
         monte_carlo_chart = "Date\t" + "\t".join([f"Simulation {i+1}" for i in range(num_simulations)]) + "\n"
         for i in range(num_days):
