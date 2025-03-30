@@ -460,7 +460,7 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write("#### Portfolio Composition")
         for ticker, weight, price in zip(self.tickers, self.weights, self.current_prices):
             position_value = self.total_portfolio_value * weight
-            st.write(f"- {ticker}: {weight*100:.2f}% ($ {position_value:,.2f}, Current Price: $ {price:.2f})")
+            st.write(f"- {ticker}: {weight*100:.2f}% ( $ {position_value:,.2f}, \n Current Price: ${price:.2f})")
 
         st.write("#### Correlation Matrix")
         if corr_matrix is not None and len(self.tickers) > 1:
