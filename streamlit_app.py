@@ -345,10 +345,12 @@ class PortfolioImpliedVolatilityAnalyzer:
         self.weights = [pair[1] for pair in self.ticker_weight_pairs]
         self.risk_free_rate = risk_free_rate
         self.analyzers = []
-        for ticker in self.tickers:
+        self.current_portfolio_value = 0  # To store the weighted portfolio value
+        for ticker, weight in zip(self.tickers, self.weights):
             try:
                 analyzer = ImpliedVolatilityAnalyzer(ticker, risk_free_rate)
                 self.analyzers.append(analyzer)
+                self.current_portfolio_value += analyzer.current_price * weight
             except Exception as e:
                 st.warning(f"Could not load data for {ticker}: {e}")
 
@@ -435,6 +437,13 @@ class PortfolioImpliedVolatilityAnalyzer:
             corr_matrix
         )
 
+    def _calculate_time_to_expiry(self, expiration_date):
+        today = date.today()
+        exp_date = datetime.strptime(expiration_date, '%Y-%m-%d').date()
+        days_to_exp = (exp_date - today).days
+        t = max(days_to_exp, 5) / 365.0  # Use a minimum of 5 days to avoid division by zero
+        return t
+
     def display_portfolio_iv(self):
         portfolio_metrics = self.calculate_portfolio_iv()
         if portfolio_metrics[0] is None:
@@ -446,6 +455,7 @@ class PortfolioImpliedVolatilityAnalyzer:
         corr_matrix = portfolio_metrics
 
         st.write("### Portfolio Implied Volatility")
+        st.write(f"**Current Portfolio Value (Weighted):** ${self.current_portfolio_value:.2f}")
         st.write("#### Portfolio Composition")
         for ticker, weight in self.ticker_weight_pairs:
             st.write(f"- {ticker}: {weight*100:.2f}%")
@@ -463,17 +473,31 @@ class PortfolioImpliedVolatilityAnalyzer:
         st.write(f"- **~6 Months (Exp: {six_month_date})**: IV: {six_month_iv*100:.2f}%")
         st.write(f"- **~1 Year (Exp: {one_year_date})**: IV: {one_year_iv*100:.2f}%")
 
-        # Copyable Portfolio IV Data
+        # Calculate and display expected moves in dollars and percentages
+        st.write("#### Expected Portfolio Movements (IV)")
+        ivs = [nearest_iv, three_month_iv, six_month_iv, one_year_iv]
+        dates = [nearest_date, three_month_date, six_month_date, one_year_date]
+        for iv, exp_date in zip(ivs, dates):
+            if not np.isnan(iv):
+                t = self._calculate_time_to_expiry(exp_date)
+                expected_move_dollars = self.current_portfolio_value * iv * np.sqrt(t)
+                expected_move_percent = iv * np.sqrt(t) * 100  # Percentage move = IV * sqrt(t) * 100
+                st.write(f"- By {exp_date}: ±${expected_move_dollars:.2f} (±{expected_move_percent:.2f}%)")
+
+        # Copyable Portfolio IV Data with Expected Moves
         st.write("## Paste this output into cell F1 in Excel File")
-        iv_chart = "Expiration Date\tImplied Volatility (%)\n"
-        iv_chart += f"{nearest_date}\t{nearest_iv*100:.2f}\n"
-        iv_chart += f"{three_month_date}\t{three_month_iv*100:.2f}\n"
-        iv_chart += f"{six_month_date}\t{six_month_iv*100:.2f}\n"
-        iv_chart += f"{one_year_date}\t{one_year_iv*100:.2f}"
-        st.code(iv_chart, language="text")
+        iv_chart = "Expiration Date\tImplied Volatility (%)\tExpected Move ($)\tExpected Move (%)\n"
+        for iv, exp_date in zip(ivs, dates):
+            if not np.isnan(iv):
+                t = self._calculate_time_to_expiry(exp_date)
+                expected_move_dollars = self.current_portfolio_value * iv * np.sqrt(t)
+                expected_move_percent = iv * np.sqrt(t) * 100
+                iv_chart += f"{exp_date}\t{iv*100:.2f}\t{expected_move_dollars:.2f}\t{expected_move_percent:.2f}\n"
+        st.code(iv_chart.strip(), language="text")
 
         st.write("#### Explanation")
         st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
+        st.write("- **Expected Portfolio Movements**: Represents the potential portfolio value fluctuation (±) by expiration, in both dollars and percentages.")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
 
 # Streamlit Navigation
