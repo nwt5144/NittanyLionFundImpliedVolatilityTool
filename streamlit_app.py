@@ -338,19 +338,20 @@ class ImpliedVolatilityAnalyzer:
             st.write(f"  - Path {i+1}: ${price:.2f}")
 
 class PortfolioImpliedVolatilityAnalyzer:
-    def __init__(self, tickers, weights, risk_free_rate=0.025):
+    def __init__(self, tickers, weights, total_portfolio_value, risk_free_rate=0.025):
         # Pair tickers and weights, filter out empty tickers and zero weights
         self.ticker_weight_pairs = [(ticker, weight / 100) for ticker, weight in zip(tickers, weights) if ticker and weight > 0]
         self.tickers = [pair[0] for pair in self.ticker_weight_pairs]
         self.weights = [pair[1] for pair in self.ticker_weight_pairs]
+        self.total_portfolio_value = total_portfolio_value  # User-defined total portfolio value
         self.risk_free_rate = risk_free_rate
         self.analyzers = []
-        self.current_portfolio_value = 0  # To store the weighted portfolio value
-        for ticker, weight in zip(self.tickers, self.weights):
+        self.current_prices = []  # To store individual stock prices for reference
+        for ticker in self.tickers:
             try:
                 analyzer = ImpliedVolatilityAnalyzer(ticker, risk_free_rate)
                 self.analyzers.append(analyzer)
-                self.current_portfolio_value += analyzer.current_price * weight
+                self.current_prices.append(analyzer.current_price)
             except Exception as e:
                 st.warning(f"Could not load data for {ticker}: {e}")
 
@@ -455,10 +456,11 @@ class PortfolioImpliedVolatilityAnalyzer:
         corr_matrix = portfolio_metrics
 
         st.write("### Portfolio Implied Volatility")
-        st.write(f"**Current Portfolio Value (Weighted):** ${self.current_portfolio_value:.2f}")
+        st.write(f"**Total Portfolio Value:** ${self.total_portfolio_value:,.2f}")
         st.write("#### Portfolio Composition")
-        for ticker, weight in self.ticker_weight_pairs:
-            st.write(f"- {ticker}: {weight*100:.2f}%")
+        for ticker, weight, price in zip(self.tickers, self.weights, self.current_prices):
+            position_value = self.total_portfolio_value * weight
+            st.write(f"- {ticker}: {weight*100:.2f}% (${position_value:,.2f}, Current Price: ${price:.2f})")
 
         st.write("#### Correlation Matrix")
         if corr_matrix is not None and len(self.tickers) > 1:
@@ -480,9 +482,9 @@ class PortfolioImpliedVolatilityAnalyzer:
         for iv, exp_date in zip(ivs, dates):
             if not np.isnan(iv):
                 t = self._calculate_time_to_expiry(exp_date)
-                expected_move_dollars = self.current_portfolio_value * iv * np.sqrt(t)
+                expected_move_dollars = self.total_portfolio_value * iv * np.sqrt(t)
                 expected_move_percent = iv * np.sqrt(t) * 100  # Percentage move = IV * sqrt(t) * 100
-                st.write(f"- By {exp_date}: ±${expected_move_dollars:.2f} (±{expected_move_percent:.2f}%)")
+                st.write(f"- By {exp_date}: ±${expected_move_dollars:,.2f} (±{expected_move_percent:.2f}%)")
 
         # Copyable Portfolio IV Data with Expected Moves
         st.write("## Paste this output into cell F1 in Excel File")
@@ -490,14 +492,14 @@ class PortfolioImpliedVolatilityAnalyzer:
         for iv, exp_date in zip(ivs, dates):
             if not np.isnan(iv):
                 t = self._calculate_time_to_expiry(exp_date)
-                expected_move_dollars = self.current_portfolio_value * iv * np.sqrt(t)
+                expected_move_dollars = self.total_portfolio_value * iv * np.sqrt(t)
                 expected_move_percent = iv * np.sqrt(t) * 100
-                iv_chart += f"{exp_date}\t{iv*100:.2f}\t{expected_move_dollars:.2f}\t{expected_move_percent:.2f}\n"
+                iv_chart += f"{exp_date}\t{iv*100:.2f}\t{expected_move_dollars:,.2f}\t{expected_move_percent:.2f}\n"
         st.code(iv_chart.strip(), language="text")
 
         st.write("#### Explanation")
         st.write("- **Portfolio IV**: Calculated as a weighted average of individual stock IVs, adjusted for historical correlations between stocks (based on 252 days of historical data).")
-        st.write("- **Expected Portfolio Movements**: Represents the potential portfolio value fluctuation (±) by expiration, in both dollars and percentages.")
+        st.write("- **Expected Portfolio Movements**: Represents the potential portfolio value fluctuation (±) by expiration, in both dollars (based on total portfolio value) and percentages.")
         st.write("- **Time Frames**: Match the expiration dates used in the single stock analysis.")
 
 # Streamlit Navigation
@@ -524,7 +526,10 @@ if page == "Implied Volatility Calculator":
 # Page 2: Portfolio Implied Volatility
 elif page == "Portfolio Implied Volatility":
     st.title("📊 Portfolio Implied Volatility")
-    st.write("Enter up to 12 stocks and their respective weights to calculate the portfolio's implied volatility over different time frames.")
+    st.write("Enter up to 12 stocks, their respective weights, and the total portfolio value to calculate the portfolio's implied volatility and expected movements over different time frames.")
+
+    # Total Portfolio Value Input
+    total_portfolio_value = st.number_input("Total Portfolio Value ($):", min_value=0.0, value=1000000.0, step=1000.0, format="%.2f")
 
     # Create two columns for tickers and weights
     col1, col2 = st.columns(2)
@@ -551,8 +556,10 @@ elif page == "Portfolio Implied Volatility":
             total_weight = sum(w for w in weights if w is not None)
             if abs(total_weight - 100.0) > 0.01:
                 st.error(f"Total weight must equal 100%. Current total: {total_weight:.2f}%")
+            elif total_portfolio_value <= 0:
+                st.error("Total portfolio value must be greater than zero.")
             else:
-                analyzer = PortfolioImpliedVolatilityAnalyzer(tickers, weights)
+                analyzer = PortfolioImpliedVolatilityAnalyzer(tickers, weights, total_portfolio_value)
                 analyzer.display_portfolio_iv()
         except Exception as e:
             st.error(f"Error: {e}")
