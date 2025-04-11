@@ -32,7 +32,7 @@ st.set_page_config(
 )
 
 # URL of the logo image in your GitHub repo
-background_image_url = "NLFLOGO.png"
+background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.png"
 
 # Custom CSS for a modern look
 custom_css = f"""
