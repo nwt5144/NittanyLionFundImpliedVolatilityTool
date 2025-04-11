@@ -47,7 +47,7 @@ custom_css = f"""
   .header-container {{
       position: relative;
       width: 100%;
-      height: 300px;
+      height: 200px;
       background: url('{background_image_url}') center/cover no-repeat;
   }}
   .header-title {{
