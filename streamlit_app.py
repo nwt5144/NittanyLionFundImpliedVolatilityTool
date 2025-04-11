@@ -26,13 +26,13 @@ PY_TEXT_COLOR = "#70797D"           # Gray
 # -------------------------
 st.set_page_config(
     page_title="Implied Volatility & Portfolio Analysis",
-    page_icon="https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.jfif",
+    page_icon="https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # URL of the logo image in your GitHub repo
-background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.jfif"
+background_image_url = "NLFLOGO.png"
 
 # Custom CSS for a modern look
 custom_css = f"""
