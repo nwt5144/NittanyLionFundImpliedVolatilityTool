@@ -46,7 +46,7 @@ custom_css = f"""
   /* Header section without the overlay */
 .header-container {{
     position: relative;
-    width: 50%;
+    width: 100%;
     height: auto; /* Let it expand with content if needed */
     aspect-ratio: 3 / 1; /* Optional: maintains aspect ratio */
     background: url('{background_image_url}') center center no-repeat;
