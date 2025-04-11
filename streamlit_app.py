@@ -26,6 +26,7 @@ PY_TEXT_COLOR = "#70797D"           # Gray
 # -------------------------
 st.set_page_config(
     page_title="Implied Volatility & Portfolio Analysis",
+    page_icon="https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.jfif",
     layout="wide",
     initial_sidebar_state="expanded",
 )
