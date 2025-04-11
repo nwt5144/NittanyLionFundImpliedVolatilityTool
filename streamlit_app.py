@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
 # URL of the logo image in your GitHub repo
-background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/nittany_lion_fund_llc_psu_logo.jfif"
+background_image_url = "https://raw.githubusercontent.com/nwt5144/nittanylionfundimpliedvolatilitytool/main/NLFLOGO.jfif"
 
 # Custom CSS to create a header with the logo as the background
 custom_css = f"""
