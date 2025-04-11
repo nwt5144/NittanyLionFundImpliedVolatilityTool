@@ -46,7 +46,7 @@ custom_css = f"""
   /* Header section without the overlay */
   .header-container {{
       position: relative;
-      width: 100%;
+      width: 50%;
       height: 200px;
       background: url('{background_image_url}') center/cover no-repeat;
   }}
