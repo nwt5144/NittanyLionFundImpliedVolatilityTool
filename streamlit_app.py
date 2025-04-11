@@ -47,9 +47,11 @@ custom_css = f"""
 .header-container {{
     position: relative;
     width: 50%;
-    height: 200px;
-    background: url('{background_image_url}') center/cover no-repeat;
-    margin: 0 auto;
+    height: auto; /* Let it expand with content if needed */
+    aspect-ratio: 3 / 1; /* Optional: maintains aspect ratio */
+    background: url('{background_image_url}') center center no-repeat;
+    background-size: contain;
+    margin: 20px auto; /* Center horizontally and give some top spacing */
 }}
   .header-title {{
       position: absolute;
