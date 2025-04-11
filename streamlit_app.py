@@ -44,12 +44,13 @@ custom_css = f"""
     scroll-behavior: smooth;
   }}
   /* Header section without the overlay */
-  .header-container {{
-      position: relative;
-      width: 50%;
-      height: 200px;
-      background: url('{background_image_url}') center/cover no-repeat;
-  }}
+.header-container {{
+    position: relative;
+    width: 50%;
+    height: 200px;
+    background: url('{background_image_url}') center/cover no-repeat;
+    margin: 0 auto;
+}}
   .header-title {{
       position: absolute;
       top: 50%;
@@ -210,9 +211,6 @@ st.markdown(
 st.markdown(
     f"""
       </div>
-    </div>
-    <div class="subtitle">
-         Implied volatility analysis and expected price movements.
     </div>
     """, unsafe_allow_html=True)
 
