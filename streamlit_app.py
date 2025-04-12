@@ -235,18 +235,17 @@ class ImpliedVolatilityAnalyzer:
         self.eod_fallback = False
 
         try:
-            self.available_expirations = self.stock.options
-            if not self.available_expirations:
-                raise ValueError("No options via yfinance")
+            self.current_price = self.stock.info['regularMarketPrice']
         except Exception:
-            try:
-                self._load_eod_options_data()
-                self.eod_fallback = True
-            except Exception:
-                try:
-                    self._fallback_estimate_iv()  # new
-                except Exception as e:
-                    raise ValueError(f"Could not retrieve options from any source for {ticker}. Error: {e}")
+            self.current_price = self.stock.info.get('previousClose', None)
+
+        if self.current_price is None:
+            hist = self.stock.history(period="5d")
+            if not hist.empty:
+                self.current_price = hist["Close"].iloc[-1]
+            else:
+                raise ValueError(f"Could not determine current price for {self.ticker}")
+
 
 
 
@@ -369,9 +368,9 @@ class ImpliedVolatilityAnalyzer:
         return sigma
 
     def calculate_iv(self, options_chain, expiration_date):
-        if self.eod_fallback:
+        if isinstance(options_chain, pd.DataFrame):  # EOD or simulated
             all_options = options_chain.copy()
-        else:
+        else:  # yfinance option_chain object
             calls = options_chain.calls.copy()
             calls['flag'] = 'call'
             puts = options_chain.puts.copy()
@@ -392,6 +391,8 @@ class ImpliedVolatilityAnalyzer:
             option_type=closest_option['flag']
         )
         return iv, closest_option['strike'], closest_option['flag']
+
+
 
     def get_iv_by_timeframes(self):
         today = date.today()
