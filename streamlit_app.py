@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
 
+### FOR THE FAILSAFE IF TICKER NOT FOUND
+@st.cache_data
+def get_sp500_tickers():
+    table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+    return table[0]['Symbol'].tolist()
+
 # -------------------------
 # Define Colors
 # -------------------------
@@ -221,16 +227,29 @@ st.markdown(
 # -------------------------
 class ImpliedVolatilityAnalyzer:
     def __init__(self, ticker, risk_free_rate=0.025):
-        self.ticker = ticker
+        self.original_ticker = ticker.upper()
         self.risk_free_rate = risk_free_rate
-        self.stock = yf.Ticker(ticker)
+        self.ticker = self.original_ticker
+        self.stock = yf.Ticker(self.ticker)
+
         try:
             self.current_price = self.stock.info['regularMarketPrice']
-        except KeyError:
-            self.current_price = self.stock.info.get('regularMarketPreviousClose', 0)
-        self.available_expirations = self.stock.options
-        if not self.available_expirations:
-            raise ValueError(f"No options data available for {self.ticker}")
+            self.available_expirations = self.stock.options
+            if not self.available_expirations:
+                raise Exception("No options available")
+        except Exception:
+            # Fallback: find correlated SP500 ticker
+            fallback_ticker = self._find_correlated_sp500()
+            if fallback_ticker:
+                st.warning(f"No options found for {self.original_ticker}. Using most correlated S&P 500 ticker: {fallback_ticker}.")
+                self.ticker = fallback_ticker
+                self.stock = yf.Ticker(self.ticker)
+                self.current_price = self.stock.info['regularMarketPrice']
+                self.available_expirations = self.stock.options
+            else:
+                raise ValueError(f"Could not find options data or suitable fallback for {self.original_ticker}.")
+
+    
 
     def get_options_data(self, expiration_date=None):
         if expiration_date is None:
@@ -330,6 +349,31 @@ class ImpliedVolatilityAnalyzer:
             return historical_data["log_return"].dropna()
         except:
             return pd.Series([])
+        
+    
+    def _find_correlated_sp500(self, days=252):
+        try:
+            target_hist = self.stock.history(period=f"{days}d")['Close'].pct_change().dropna()
+            sp500 = get_sp500_tickers()
+            correlations = {}
+            for sym in sp500:
+                try:
+                    sp_hist = yf.Ticker(sym).history(period=f"{days}d")['Close'].pct_change().dropna()
+                    aligned = pd.concat([target_hist, sp_hist], axis=1).dropna()
+                    if len(aligned) > 30:  # Ensure enough overlap
+                        corr = aligned.corr().iloc[0, 1]
+                        correlations[sym] = corr
+                except:
+                    continue
+            if correlations:
+                sorted_corr = sorted(correlations.items(), key=lambda x: abs(x[1]), reverse=True)
+                for ticker, corr in sorted_corr:
+                    if yf.Ticker(ticker).options:
+                        return ticker
+        except:
+            return None
+        return None
+    
 
     def display_iv_metrics(self):
         metrics = self.get_iv_by_timeframes()
