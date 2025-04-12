@@ -5,6 +5,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from scipy.stats import norm
+import requests
+
 
 ### FOR THE FAILSAFE IF TICKER NOT FOUND
 @st.cache_data
@@ -227,38 +229,62 @@ st.markdown(
 # -------------------------
 class ImpliedVolatilityAnalyzer:
     def __init__(self, ticker, risk_free_rate=0.025):
-        self.original_ticker = ticker.upper()
+        self.ticker = ticker.upper()
         self.risk_free_rate = risk_free_rate
-        self.ticker = self.original_ticker
         self.stock = yf.Ticker(self.ticker)
+        self.eod_fallback = False
 
         try:
             self.current_price = self.stock.info['regularMarketPrice']
+        except KeyError:
+            self.current_price = self.stock.info.get('regularMarketPreviousClose', 0)
+
+        try:
             self.available_expirations = self.stock.options
             if not self.available_expirations:
-                raise Exception("No options available")
+                raise ValueError("No options via yfinance")
         except Exception:
-            # Fallback: find correlated SP500 ticker
-            fallback_ticker = self._find_correlated_sp500()
-            if fallback_ticker:
-                st.warning(f"No options found for {self.original_ticker}. Using most correlated S&P 500 ticker: {fallback_ticker}.")
-                self.ticker = fallback_ticker
-                self.stock = yf.Ticker(self.ticker)
-                self.current_price = self.stock.info['regularMarketPrice']
-                self.available_expirations = self.stock.options
-            else:
-                raise ValueError(f"Could not find options data or suitable fallback for {self.original_ticker}.")
+            try:
+                self._load_eod_options_data()
+                self.eod_fallback = True
+            except Exception as e:
+                raise ValueError(f"Could not retrieve options from yfinance or EOD for {ticker}. Error: {e}")
+
 
     
+    def _load_eod_options_data(self):
+        base_url = f"https://eodhistoricaldata.com/api/options/{self.ticker}"
+        params = {
+            "api_token": "67fa824106fb95.84671915",
+            "fmt": "json"
+        }
+        response = requests.get(base_url, params=params)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch EOD options for {self.ticker}: {response.text}")
+        
+        data = response.json()
+        self.eod_expirations = list(data.get("options", {}).keys())
+        self.eod_options_data = data.get("options", {})
+        self.current_price = data.get("underlying_price", 0)
+        
+        if not self.eod_expirations:
+            raise ValueError(f"No options data available in EOD for {self.ticker}")
+
 
     def get_options_data(self, expiration_date=None):
-        if expiration_date is None:
-            if len(self.available_expirations) > 0:
+        if not self.eod_fallback:
+            if expiration_date is None:
                 expiration_date = self.available_expirations[0]
-            else:
-                raise ValueError(f"No option expiration dates available for {self.ticker}")
-        options_chain = self.stock.option_chain(expiration_date)
-        return options_chain, expiration_date
+            options_chain = self.stock.option_chain(expiration_date)
+            return options_chain, expiration_date
+        else:
+            if expiration_date is None:
+                expiration_date = self.eod_expirations[0]
+            options = self.eod_options_data.get(expiration_date, {})
+            calls = pd.DataFrame(options.get("calls", []))
+            puts = pd.DataFrame(options.get("puts", []))
+            return pd.concat([calls.assign(flag='call'), puts.assign(flag='put')]), expiration_date
+
 
     def _calculate_time_to_expiry(self, expiration_date):
         today = date.today()
@@ -287,11 +313,15 @@ class ImpliedVolatilityAnalyzer:
         return sigma
 
     def calculate_iv(self, options_chain, expiration_date):
-        calls = options_chain.calls.copy()
-        calls['flag'] = 'call'
-        puts = options_chain.puts.copy()
-        puts['flag'] = 'put'
-        all_options = pd.concat([calls, puts])
+        if self.eod_fallback:
+            all_options = options_chain.copy()
+        else:
+            calls = options_chain.calls.copy()
+            calls['flag'] = 'call'
+            puts = options_chain.puts.copy()
+            puts['flag'] = 'put'
+            all_options = pd.concat([calls, puts])
+
         all_options['strike_diff'] = abs(all_options['strike'] - self.current_price)
         closest_option = all_options.loc[all_options['strike_diff'].idxmin()].copy()
         if isinstance(closest_option, pd.DataFrame):
