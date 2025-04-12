@@ -228,6 +228,15 @@ st.markdown(
 # BACKEND CLASSES
 # -------------------------
 class ImpliedVolatilityAnalyzer:
+    def fetch_dynamic_risk_free_rate():
+        try:
+            treasury = yf.Ticker("^IRX")  # 13-week T-bill yield
+            data = treasury.history(period="1d")
+            latest_yield = data["Close"].iloc[-1] / 100  # Convert to decimal
+            return latest_yield
+        except:
+            return 0.025  # fallback default
+        
     def __init__(self, ticker, risk_free_rate=None):
         self.ticker = ticker.upper()
         self.risk_free_rate = risk_free_rate if risk_free_rate is not None else fetch_dynamic_risk_free_rate()
@@ -258,16 +267,6 @@ class ImpliedVolatilityAnalyzer:
                 self.eod_fallback = True
             except Exception:
                 self._fallback_estimate_iv()
-
-
-    def fetch_dynamic_risk_free_rate():
-        try:
-            treasury = yf.Ticker("^IRX")  # 13-week T-bill yield
-            data = treasury.history(period="1d")
-            latest_yield = data["Close"].iloc[-1] / 100  # Convert to decimal
-            return latest_yield
-        except:
-            return 0.025  # fallback default
  
     def _load_eod_options_data(self):
         base_url = f"https://eodhistoricaldata.com/api/options/{self.ticker}"
