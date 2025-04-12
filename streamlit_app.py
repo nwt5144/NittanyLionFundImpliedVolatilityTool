@@ -228,28 +228,47 @@ st.markdown(
 # BACKEND CLASSES
 # -------------------------
 class ImpliedVolatilityAnalyzer:
-    def __init__(self, ticker, risk_free_rate=0.025):
+    def __init__(self, ticker, risk_free_rate=None):
         self.ticker = ticker.upper()
-        self.risk_free_rate = risk_free_rate
+        self.risk_free_rate = risk_free_rate if risk_free_rate is not None else fetch_dynamic_risk_free_rate()
         self.stock = yf.Ticker(self.ticker)
         self.eod_fallback = False
+        self.simulated_fallback = False
 
         try:
-            self.current_price = self.stock.info['regularMarketPrice']
+            self.available_expirations = self.stock.options
+            if not self.available_expirations:
+                raise ValueError("No options via yfinance")
+            
+            # Try to get the current price using yfinance
+            try:
+                self.current_price = self.stock.info['regularMarketPrice']
+            except Exception:
+                self.current_price = self.stock.info.get('previousClose', None)
+            if self.current_price is None:
+                hist = self.stock.history(period="5d")
+                if not hist.empty:
+                    self.current_price = hist["Close"].iloc[-1]
+                else:
+                    raise ValueError(f"Could not determine current price for {self.ticker}")
+
         except Exception:
-            self.current_price = self.stock.info.get('previousClose', None)
-
-        if self.current_price is None:
-            hist = self.stock.history(period="5d")
-            if not hist.empty:
-                self.current_price = hist["Close"].iloc[-1]
-            else:
-                raise ValueError(f"Could not determine current price for {self.ticker}")
+            try:
+                self._load_eod_options_data()
+                self.eod_fallback = True
+            except Exception:
+                self._fallback_estimate_iv()
 
 
-
-
-    
+    def fetch_dynamic_risk_free_rate():
+        try:
+            treasury = yf.Ticker("^IRX")  # 13-week T-bill yield
+            data = treasury.history(period="1d")
+            latest_yield = data["Close"].iloc[-1] / 100  # Convert to decimal
+            return latest_yield
+        except:
+            return 0.025  # fallback default
+ 
     def _load_eod_options_data(self):
         base_url = f"https://eodhistoricaldata.com/api/options/{self.ticker}"
         params = {
@@ -265,6 +284,7 @@ class ImpliedVolatilityAnalyzer:
         self.eod_options_data = data.get("options", {})
         self.current_price = data.get("underlying_price", 0)
         
+        self.available_expirations = self.eod_expirations
         if not self.eod_expirations:
             raise ValueError(f"No options data available in EOD for {self.ticker}")
 
@@ -312,6 +332,7 @@ class ImpliedVolatilityAnalyzer:
             self.current_price = S
             self.available_expirations = [self.simulated_option['expiration']]
             self.simulated_fallback = True
+            self.available_expirations = [self.simulated_option['expiration']]
         except Exception as e:
             raise ValueError(f"Fallback IV estimation failed: {e}")
 
