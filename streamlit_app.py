@@ -228,6 +228,7 @@ st.markdown(
 # BACKEND CLASSES
 # -------------------------
 class ImpliedVolatilityAnalyzer:
+    @staticmethod
     def fetch_dynamic_risk_free_rate():
         try:
             treasury = yf.Ticker("^IRX")  # 13-week T-bill yield
@@ -239,7 +240,7 @@ class ImpliedVolatilityAnalyzer:
         
     def __init__(self, ticker, risk_free_rate=None):
         self.ticker = ticker.upper()
-        self.risk_free_rate = risk_free_rate if risk_free_rate is not None else fetch_dynamic_risk_free_rate()
+        self.risk_free_rate = risk_free_rate if risk_free_rate is not None else self.fetch_dynamic_risk_free_rate()
         self.stock = yf.Ticker(self.ticker)
         self.eod_fallback = False
         self.simulated_fallback = False
