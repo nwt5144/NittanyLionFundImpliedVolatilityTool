@@ -330,9 +330,18 @@ class ImpliedVolatilityAnalyzer:
                 "expiration": (datetime.today() + timedelta(days=30)).strftime('%Y-%m-%d')
             }
             self.current_price = S
-            self.available_expirations = [self.simulated_option['expiration']]
+            base_date = datetime.today()
+            self.available_expirations = [
+                (base_date + timedelta(days=7)).strftime('%Y-%m-%d'),    # Nearest
+                (base_date + timedelta(days=90)).strftime('%Y-%m-%d'),   # ~3 Months
+                (base_date + timedelta(days=180)).strftime('%Y-%m-%d'),  # ~6 Months
+                (base_date + timedelta(days=365)).strftime('%Y-%m-%d')   # ~1 Year
+            ]
+            self.simulated_expirations = {
+                exp: self.simulated_option for exp in self.available_expirations
+            }
+
             self.simulated_fallback = True
-            self.available_expirations = [self.simulated_option['expiration']]
         except Exception as e:
             raise ValueError(f"Fallback IV estimation failed: {e}")
 
@@ -340,7 +349,10 @@ class ImpliedVolatilityAnalyzer:
 
     def get_options_data(self, expiration_date=None):
         if getattr(self, "simulated_fallback", False):
-            opt = self.simulated_option
+            if expiration_date is None:
+                expiration_date = list(self.simulated_expirations.keys())[0]
+            opt = self.simulated_expirations.get(expiration_date, self.simulated_option)
+
             df = pd.DataFrame([{
                 "strike": opt["strike"],
                 "lastPrice": self._bs_price(self.current_price, opt["strike"], 30/365, self.risk_free_rate, opt["iv"]),
