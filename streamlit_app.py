@@ -884,7 +884,7 @@ if page == "Implied Volatility Calculator":
                         st.code(f"""
         Expected Move = S * σ * sqrt(T) = {S:.2f} * {sigma:.4f} * sqrt({T:.4f}) = ±${expected_move:.2f}
                         """, language="text")
-                                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Solving for σ using Newton-Raphson</h4>", unsafe_allow_html=True)
+                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Solving for σ using Newton-Raphson</h4>", unsafe_allow_html=True)
                         st.markdown(r"""
         To compute the implied volatility \( \sigma \), we use the Newton-Raphson method:
 
