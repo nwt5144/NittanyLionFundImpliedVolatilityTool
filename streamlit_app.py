@@ -903,7 +903,7 @@ if page == "Implied Volatility Calculator":
         3. Adjust σ accordingly
 
         **Example First Iteration (Starting with σ = 0.3000):**
-        """, unsafe_allow_html=True)
+        """)
 
                         # Manually simulate first iteration to show how it's done
                         sigma_guess = 0.3
