@@ -889,13 +889,8 @@ if page == "Implied Volatility Calculator":
         To compute the implied volatility σ, we use the Newton-Raphson method:
 
         $$
-        \σ_{n+1} = \σ_n - \frac{f(\σ_n)}{f'(\σ_n)}
+        σ_{n+1} = σ_n - \frac{f(σ_n)}{f'(σ_n)}
         $$
-
-        Where:
-
-        - \( f(\σ) = \text{BS}(\σ) - \text{OptionPrice} \)
-        - \( f'(\σ) = \text{Vega} = S \cdot \sqrt{t} \cdot N'(d_1) \)
 
         **At each step**, we:
         1. Compute the Black-Scholes price using the current estimate of σ
