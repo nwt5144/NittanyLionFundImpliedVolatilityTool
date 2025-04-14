@@ -836,6 +836,74 @@ if page == "Implied Volatility Calculator":
                     st.markdown("<div class='card'>", unsafe_allow_html=True)
                     analyzer.display_iv_metrics()
                     st.markdown("</div>", unsafe_allow_html=True)
+                # -------------------------
+                # FOR NERDS SECTION (COLLAPSIBLE)
+                # -------------------------
+                with st.expander("🧠 For Nerds: Show Full Math & Formulas"):
+                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Black-Scholes Formula</h3>", unsafe_allow_html=True)
+                    st.markdown(r"""
+                    The theoretical price of a European call option is given by the **Black-Scholes formula**:
+
+                    $$ C = S N(d_1) - K e^{-rt} N(d_2) $$
+
+                    And for a European put:
+
+                    $$ P = K e^{-rt} N(-d_2) - S N(-d_1) $$
+
+                    where:
+
+                    $$ d_1 = \frac{\ln(S / K) + (r + \frac{\sigma^2}{2}) t}{\sigma \sqrt{t}}, \quad d_2 = d_1 - \sigma \sqrt{t} $$
+
+                    - \( S \): Current stock price  
+                    - \( K \): Strike price  
+                    - \( r \): Risk-free interest rate  
+                    - \( t \): Time to expiration (in years)  
+                    - \( \sigma \): Volatility (standard deviation of returns)  
+                    - \( N(x) \): Cumulative distribution function of the standard normal distribution
+                    """)
+
+                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Implied Volatility</h3>", unsafe_allow_html=True)
+                    st.markdown(r"""
+                    - Implied volatility is solved **numerically** (e.g., Newton-Raphson method) by minimizing the difference between market price and model price of an option.
+                    - This app uses a Newton-Raphson root-finding loop to solve for \( \sigma \) in the Black-Scholes formula.
+
+                    The update step is:
+
+                    $$ \sigma_{n+1} = \sigma_n - \frac{f(\sigma_n)}{f'(\sigma_n)} $$
+
+                    where:
+
+                    - \( f(\sigma) \): Difference between BS price and actual price
+                    - \( f'(\sigma) \): Vega (sensitivity of option price to volatility)
+
+                    Vega is computed as:
+
+                    $$ \text{Vega} = S \sqrt{t} \cdot N'(d_1) $$
+                    """)
+
+                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Portfolio IV</h3>", unsafe_allow_html=True)
+                    st.markdown(r"""
+                    The **portfolio volatility** is calculated using:
+
+                    $$ \sigma_p = \sqrt{ \sum_{i=1}^n w_i^2 \sigma_i^2 + \sum_{i \ne j} w_i w_j \sigma_i \sigma_j \rho_{ij} } $$
+
+                    where:
+
+                    - \( w_i \): Weight of asset \( i \)
+                    - \( \sigma_i \): Volatility (IV) of asset \( i \)
+                    - \( \rho_{ij} \): Correlation between asset \( i \) and \( j \)
+                    """)
+
+                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Expected Price Movement</h3>", unsafe_allow_html=True)
+                    st.markdown(r"""
+                    To estimate expected price movement using IV:
+
+                    $$ \Delta P = S \cdot \sigma \cdot \sqrt{t} $$
+
+                    - \( S \): Current stock price  
+                    - \( \sigma \): IV (in decimal)  
+                    - \( t \): Time to expiration in years
+                    """)
             with tabs[1]:
                 with st.container():
                     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -849,6 +917,7 @@ if page == "Implied Volatility Calculator":
                     st.markdown("</div>", unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 # Page 2: Portfolio Analysis
 elif page == "Portfolio Implied Volatility":
