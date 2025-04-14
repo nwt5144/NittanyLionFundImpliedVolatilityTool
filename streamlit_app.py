@@ -839,71 +839,53 @@ if page == "Implied Volatility Calculator":
                 # -------------------------
                 # FOR NERDS SECTION (COLLAPSIBLE)
                 # -------------------------
+                # FOR NERDS SECTION (REAL OPTIONS OR FALLBACK)
                 with st.expander("🧠 For Nerds: Show Full Math & Formulas"):
-                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Black-Scholes Formula</h3>", unsafe_allow_html=True)
-                    st.markdown(r"""
-                    The theoretical price of a European call option is given by the **Black-Scholes formula**:
+                    try:
+                        # Determine expiration and pull options data
+                        expiration_date = analyzer.available_expirations[0]
+                        options_df, expiration = analyzer.get_options_data(expiration_date)
+                        iv, strike, flag = analyzer.calculate_iv(options_df, expiration)
 
-                    $$ C = S N(d_1) - K e^{-rt} N(d_2) $$
+                        S = analyzer.current_price
+                        K = strike
+                        T, _ = analyzer._calculate_time_to_expiry(expiration_date)
+                        r = analyzer.risk_free_rate
+                        sigma = iv
+                        option_type = flag.lower()
 
-                    And for a European put:
+                        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+                        d2 = d1 - sigma * np.sqrt(T)
+                        if option_type == "call":
+                            price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+                        else:
+                            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
 
-                    $$ P = K e^{-rt} N(-d_2) - S N(-d_1) $$
+                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Black-Scholes Inputs</h4>", unsafe_allow_html=True)
+                        st.code(f"""
+        S = Current Stock Price = {S:.2f}
+        K = Strike Price = {K}
+        T = Time to Expiry = {T:.4f} years
+        r = Risk-Free Rate = {r:.4f}
+        σ = Implied Volatility = {sigma:.4f}
+        Type = {option_type.upper()}
+                        """, language="text")
 
-                    where:
+                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Black-Scholes Calculation</h4>", unsafe_allow_html=True)
+                        st.code(f"""
+        d1 = (ln(S / K) + (r + 0.5 * σ²) * T) / (σ * sqrt(T)) = {d1:.4f}
+        d2 = d1 - σ * sqrt(T) = {d2:.4f}
 
-                    $$ d_1 = \frac{\ln(S / K) + (r + \frac{\sigma^2}{2}) t}{\sigma \sqrt{t}}, \quad d_2 = d_1 - \sigma \sqrt{t} $$
+        Option Price ≈ {price:.4f}
+                        """, language="text")
 
-                    - \( S \): Current stock price  
-                    - \( K \): Strike price  
-                    - \( r \): Risk-free interest rate  
-                    - \( t \): Time to expiration (in years)  
-                    - \( \sigma \): Volatility (standard deviation of returns)  
-                    - \( N(x) \): Cumulative distribution function of the standard normal distribution
-                    """)
-
-                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Implied Volatility</h3>", unsafe_allow_html=True)
-                    st.markdown(r"""
-                    - Implied volatility is solved **numerically** (e.g., Newton-Raphson method) by minimizing the difference between market price and model price of an option.
-                    - This app uses a Newton-Raphson root-finding loop to solve for \( \sigma \) in the Black-Scholes formula.
-
-                    The update step is:
-
-                    $$ \sigma_{n+1} = \sigma_n - \frac{f(\sigma_n)}{f'(\sigma_n)} $$
-
-                    where:
-
-                    - \( f(\sigma) \): Difference between BS price and actual price
-                    - \( f'(\sigma) \): Vega (sensitivity of option price to volatility)
-
-                    Vega is computed as:
-
-                    $$ \text{Vega} = S \sqrt{t} \cdot N'(d_1) $$
-                    """)
-
-                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Portfolio IV</h3>", unsafe_allow_html=True)
-                    st.markdown(r"""
-                    The **portfolio volatility** is calculated using:
-
-                    $$ \sigma_p = \sqrt{ \sum_{i=1}^n w_i^2 \sigma_i^2 + \sum_{i \ne j} w_i w_j \sigma_i \sigma_j \rho_{ij} } $$
-
-                    where:
-
-                    - \( w_i \): Weight of asset \( i \)
-                    - \( \sigma_i \): Volatility (IV) of asset \( i \)
-                    - \( \rho_{ij} \): Correlation between asset \( i \) and \( j \)
-                    """)
-
-                    st.markdown(f"<h3 style='color: {CSS_PRIMARY_COLOR};'>Expected Price Movement</h3>", unsafe_allow_html=True)
-                    st.markdown(r"""
-                    To estimate expected price movement using IV:
-
-                    $$ \Delta P = S \cdot \sigma \cdot \sqrt{t} $$
-
-                    - \( S \): Current stock price  
-                    - \( \sigma \): IV (in decimal)  
-                    - \( t \): Time to expiration in years
-                    """)
+                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Expected Price Movement (IV)</h4>", unsafe_allow_html=True)
+                        expected_move = S * sigma * np.sqrt(T)
+                        st.code(f"""
+        Expected Move = S * σ * sqrt(T) = {S:.2f} * {sigma:.4f} * sqrt({T:.4f}) = ±${expected_move:.2f}
+                        """, language="text")
+                    except Exception as e:
+                        st.warning(f"Could not display full math breakdown: {e}")
             with tabs[1]:
                 with st.container():
                     st.markdown("<div class='card'>", unsafe_allow_html=True)
