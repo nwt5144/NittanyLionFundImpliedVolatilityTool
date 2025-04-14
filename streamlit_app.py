@@ -886,16 +886,16 @@ if page == "Implied Volatility Calculator":
                         """, language="text")
                         st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Solving for σ using Newton-Raphson</h4>", unsafe_allow_html=True)
                         st.markdown(r"""
-        To compute the implied volatility \( \sigma \), we use the Newton-Raphson method:
+        To compute the implied volatility σ, we use the Newton-Raphson method:
 
         $$
-        \sigma_{n+1} = \sigma_n - \frac{f(\sigma_n)}{f'(\sigma_n)}
+        \σ_{n+1} = \σ_n - \frac{f(\σ_n)}{f'(\σ_n)}
         $$
 
         Where:
 
-        - \( f(\sigma) = \text{BS}(\sigma) - \text{OptionPrice} \)
-        - \( f'(\sigma) = \text{Vega} = S \cdot \sqrt{t} \cdot N'(d_1) \)
+        - \( f(\σ) = \text{BS}(\σ) - \text{OptionPrice} \)
+        - \( f'(\σ) = \text{Vega} = S \cdot \sqrt{t} \cdot N'(d_1) \)
 
         **At each step**, we:
         1. Compute the Black-Scholes price using the current estimate of σ
@@ -903,7 +903,7 @@ if page == "Implied Volatility Calculator":
         3. Adjust σ accordingly
 
         **Example First Iteration (Starting with σ = 0.3000):**
-        """)
+        """, unsafe_allow_html=True)
 
                         # Manually simulate first iteration to show how it's done
                         sigma_guess = 0.3
