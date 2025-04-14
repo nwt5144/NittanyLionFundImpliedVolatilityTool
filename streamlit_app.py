@@ -884,6 +884,50 @@ if page == "Implied Volatility Calculator":
                         st.code(f"""
         Expected Move = S * σ * sqrt(T) = {S:.2f} * {sigma:.4f} * sqrt({T:.4f}) = ±${expected_move:.2f}
                         """, language="text")
+                                        st.markdown(f"<h4 style='color: {CSS_PRIMARY_COLOR};'>Solving for σ using Newton-Raphson</h4>", unsafe_allow_html=True)
+                        st.markdown(r"""
+        To compute the implied volatility \( \sigma \), we use the Newton-Raphson method:
+
+        $$
+        \sigma_{n+1} = \sigma_n - \frac{f(\sigma_n)}{f'(\sigma_n)}
+        $$
+
+        Where:
+
+        - \( f(\sigma) = \text{BS}(\sigma) - \text{OptionPrice} \)
+        - \( f'(\sigma) = \text{Vega} = S \cdot \sqrt{t} \cdot N'(d_1) \)
+
+        **At each step**, we:
+        1. Compute the Black-Scholes price using the current estimate of σ
+        2. Calculate Vega using the derivative of the BS formula
+        3. Adjust σ accordingly
+
+        **Example First Iteration (Starting with σ = 0.3000):**
+        """, unsafe_allow_html=True)
+
+                        # Manually simulate first iteration to show how it's done
+                        sigma_guess = 0.3
+                        price_bs = analyzer._bs_price(S, K, T, r, sigma_guess, option_type)
+                        vega = S * np.sqrt(T) * norm.pdf((np.log(S / K) + (r + 0.5 * sigma_guess**2) * T) / (sigma_guess * np.sqrt(T)))
+                        sigma_new = sigma_guess - (price_bs - price) / max(vega, 1e-8)
+                        sigma_new = max(0.01, min(sigma_new, 2.0))
+
+                        st.code(f"""
+        Start with σ = 0.3000
+
+        BS(σ) = {price_bs:.4f}
+        Vega = {vega:.4f}
+
+        σ₁ = σ₀ - (BS(σ₀) - OptionPrice) / Vega
+        = 0.3000 - ({price_bs:.4f} - {price:.4f}) / {vega:.4f}
+        = {sigma_new:.4f}
+                        """, language="text")
+
+                        st.markdown(r"""
+        This process continues iteratively until the price difference is within the precision threshold (e.g., \(10^{-8}\)).
+
+        Typically, convergence happens within 5–10 iterations.
+        """, unsafe_allow_html=True)
                     except Exception as e:
                         st.warning(f"Could not display full math breakdown: {e}")
             with tabs[1]:
