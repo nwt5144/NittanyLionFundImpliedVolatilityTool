@@ -1,19 +1,7 @@
-# 🎈 Blank app template
+The Nittany Lion Fund Implied Volatility Tool is designed to make sophisticated options analysis accessible to analysts, students, and investors through an intuitive, browser-based interface. At its core, the tool uses real-time data from Yahoo Finance via the yfinance library to fetch both options chains and historical stock prices. This enables users to analyze the implied volatility (IV) of a stock across multiple expiration dates and strike prices using the Black-Scholes pricing model. Once a user inputs a valid stock ticker, the app automatically identifies the closest-to-the-money options and computes IV using a Newton-Raphson iterative solver, ensuring high precision in its estimates.
 
-A simple Streamlit app template for you to modify!
+Implied volatility is calculated for four key timeframes: the nearest expiration, approximately three months, six months, and one year out. These durations are chosen to give a holistic view of the market's expectations for future price fluctuations. For each selected expiration, the app calculates the expected price movement using the Black-Scholes model's volatility input, which is then multiplied by the square root of time to generate a realistic forecast range. These expected moves are presented alongside historical volatility calculations derived from log returns of closing prices over 30-day and 1-year windows, allowing for direct comparison between how the market has behaved versus how it is currently being priced.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+The backend is object-oriented and modular, with a dedicated ImpliedVolatilityAnalyzer class that encapsulates all data fetching, calculation, and formatting logic. This separation of concerns allows for clean integration with the frontend, which is built using Streamlit. On the frontend, the tool includes custom CSS and branding elements to align with the identity of the Nittany Lion Fund, and organizes all outputs into readable sections. In addition to on-screen visualizations, the tool generates exportable blocks of tab-separated data, formatted specifically for pasting into the Nittany Lion Fund's internal Excel templates. This feature bridges the gap between automated analytics and hands-on portfolio modeling, making it an efficient workflow enhancer for professional and academic investment research.
 
-### How to run it on your own machine
-
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+Overall, the app delivers fast, precise, and clear analytics that help investors understand the implied risk and volatility structure of individual securities. Whether used as a stand-alone tool or as part of a larger research pipeline, it empowers users to better assess option pricing, manage risk, and anticipate movement scenarios in a way that aligns with industry practices.
